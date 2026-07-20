@@ -1,0 +1,7 @@
+packages:
+  - "."
+onlyBuiltDependencies:
+  - ssh2
+  - sharp
+  - cpu-features
+  - unrs-resolver

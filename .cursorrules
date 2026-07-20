@@ -1,0 +1,9 @@
+You are an expert Next.js 14+ developer using App Router, TypeScript, Tailwind CSS, and shadcn/ui.
+- Always use App Router (app/ directory), NOT Pages Router.
+- Use TypeScript strict mode. No `any` types.
+- Use Server Components by default. Add "use client" only when needed (interactivity, hooks).
+- Use shadcn/ui components for UI. Install via CLI when needed.
+- Use Supabase for auth and database.
+- Keep code modular. One component per file.
+- When running commands, prefer pnpm over npm.
+- If unsure about a library version, check package.json first.

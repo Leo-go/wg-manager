@@ -1,0 +1,214 @@
+PRIV_LEN=43 UUID=190c0d9a-3218-4c77-b7e4-17b9a45c5667 SID=853f
+X25519_OUT=PrivateKey: 8Ac8iy_oHKIBpECFUGaCv1RKS0BZ6HkJ7LrK4bHxh00
+Password (PublicKey): UPKviARwPwkGb9dhTL2iT4HhiDNvu66kVsvWkAziNBg
+Hash32: TxZatiNB5CuoRpFfUSerbn1YZY72oo-5WhLeC61Q8w8
+PBK=UPKviARwPwkGb9dhTL2iT4HhiDNvu66kVsvWkAziNBg
+SID443=879f7ed2037c8fd4
+CONFIG_WRITTEN
+net.ipv4.tcp_congestion_control = bbr
+==== VALIDATE ====
+Xray 26.7.11 (Xray, Penetrates Everything.) 50231ea (go1.26.5 linux/amd64)
+A unified platform for anti-censorship.
+Configuration OK.
+XRAY=active
+LISTEN 0      4096               *:443              *:*    users:(("xray",pid=17226,fd=6))                                                                                                                                   
+LISTEN 0      4096               *:2053             *:*    users:(("xray",pid=17226,fd=3))                                                                                                                                   
+2053_OK
+443_OK
+==== OPENSSL ====
+depth=2 C = US, O = DigiCert Inc, OU = www.digicert.com, CN = DigiCert Global Root G2
+verify return:1
+depth=1 C = US, O = Apple Inc., CN = Apple Public EV Server RSA CA 1 - G1
+verify return:1
+depth=0 businessCategory = Private Organization, jurisdictionC = US, jurisdictionST = California, serialNumber = C0806592, C = US, ST = California, L = Cupertino, O = Apple Inc., CN = www.apple.com
+verify return:1
+CONNECTED(00000003)
+---
+Certificate chain
+ 0 s:businessCategory = Private Organization, jurisdictionC = US, jurisdictionST = California, serialNumber = C0806592, C = US, ST = California, L = Cupertino, O = Apple Inc., CN = www.apple.com
+   i:C = US, O = Apple Inc., CN = Apple Public EV Server RSA CA 1 - G1
+   a:PKEY: rsaEncryption, 2048 (bit); sigalg: RSA-SHA256
+   v:NotBefore: Jul  2 22:11:57 2026 GMT; NotAfter: Dec 16 18:31:25 2026 GMT
+ 1 s:C = US, O = Apple Inc., CN = Apple Public EV Server RSA CA 1 - G1
+   i:C = US, O = DigiCert Inc, OU = www.digicert.com, CN = DigiCert Global Root G2
+   a:PKEY: rsaEncryption, 2048 (bit); sigalg: RSA-SHA256
+   v:NotBefore: Apr 29 12:55:34 2020 GMT; NotAfter: Apr 10 23:59:59 2030 GMT
+---
+Server certificate
+-----BEGIN CERTIFICATE-----
+---
+depth=2 C = US, O = DigiCert Inc, OU = www.digicert.com, CN = DigiCert Global Root G2
+verify return:1
+depth=1 C = US, O = Apple Inc., CN = Apple Public EV Server RSA CA 1 - G1
+verify return:1
+depth=0 businessCategory = Private Organization, jurisdictionC = US, jurisdictionST = California, serialNumber = C0806592, C = US, ST = California, L = Cupertino, O = Apple Inc., CN = www.apple.com
+verify return:1
+CONNECTED(00000003)
+---
+Certificate chain
+ 0 s:businessCategory = Private Organization, jurisdictionC = US, jurisdictionST = California, serialNumber = C0806592, C = US, ST = California, L = Cupertino, O = Apple Inc., CN = www.apple.com
+   i:C = US, O = Apple Inc., CN = Apple Public EV Server RSA CA 1 - G1
+   a:PKEY: rsaEncryption, 2048 (bit); sigalg: RSA-SHA256
+   v:NotBefore: Jul  2 22:11:57 2026 GMT; NotAfter: Dec 16 18:31:25 2026 GMT
+ 1 s:C = US, O = Apple Inc., CN = Apple Public EV Server RSA CA 1 - G1
+   i:C = US, O = DigiCert Inc, OU = www.digicert.com, CN = DigiCert Global Root G2
+   a:PKEY: rsaEncryption, 2048 (bit); sigalg: RSA-SHA256
+   v:NotBefore: Apr 29 12:55:34 2020 GMT; NotAfter: Apr 10 23:59:59 2030 GMT
+---
+Server certificate
+-----BEGIN CERTIFICATE-----
+---
+depth=2 C = US, O = DigiCert Inc, OU = www.digicert.com, CN = DigiCert Global Root G2
+verify return:1
+depth=1 C = US, O = Apple Inc., CN = Apple Public EV Server RSA CA 1 - G1
+verify return:1
+depth=0 businessCategory = Private Organization, jurisdictionC = US, jurisdictionST = California, serialNumber = C0806592, C = US, ST = California, L = Cupertino, O = Apple Inc., CN = www.apple.com
+verify return:1
+CONNECTED(00000003)
+---
+Certificate chain
+ 0 s:businessCategory = Private Organization, jurisdictionC = US, jurisdictionST = California, serialNumber = C0806592, C = US, ST = California, L = Cupertino, O = Apple Inc., CN = www.apple.com
+   i:C = US, O = Apple Inc., CN = Apple Public EV Server RSA CA 1 - G1
+   a:PKEY: rsaEncryption, 2048 (bit); sigalg: RSA-SHA256
+   v:NotBefore: Jul  2 22:11:57 2026 GMT; NotAfter: Dec 16 18:31:25 2026 GMT
+ 1 s:C = US, O = Apple Inc., CN = Apple Public EV Server RSA CA 1 - G1
+   i:C = US, O = DigiCert Inc, OU = www.digicert.com, CN = DigiCert Global Root G2
+   a:PKEY: rsaEncryption, 2048 (bit); sigalg: RSA-SHA256
+   v:NotBefore: Apr 29 12:55:34 2020 GMT; NotAfter: Apr 10 23:59:59 2030 GMT
+---
+Server certificate
+-----BEGIN CERTIFICATE-----
+---
+depth=2 C = US, O = DigiCert Inc, OU = www.digicert.com, CN = DigiCert Global Root G2
+verify return:1
+depth=1 C = US, O = Apple Inc., CN = Apple Public EV Server RSA CA 1 - G1
+verify return:1
+depth=0 businessCategory = Private Organization, jurisdictionC = US, jurisdictionST = California, serialNumber = C0806592, C = US, ST = California, L = Cupertino, O = Apple Inc., CN = www.apple.com
+verify return:1
+CONNECTED(00000003)
+---
+Certificate chain
+ 0 s:businessCategory = Private Organization, jurisdictionC = US, jurisdictionST = California, serialNumber = C0806592, C = US, ST = California, L = Cupertino, O = Apple Inc., CN = www.apple.com
+   i:C = US, O = Apple Inc., CN = Apple Public EV Server RSA CA 1 - G1
+   a:PKEY: rsaEncryption, 2048 (bit); sigalg: RSA-SHA256
+   v:NotBefore: Jul  2 22:11:57 2026 GMT; NotAfter: Dec 16 18:31:25 2026 GMT
+ 1 s:C = US, O = Apple Inc., CN = Apple Public EV Server RSA CA 1 - G1
+   i:C = US, O = DigiCert Inc, OU = www.digicert.com, CN = DigiCert Global Root G2
+   a:PKEY: rsaEncryption, 2048 (bit); sigalg: RSA-SHA256
+   v:NotBefore: Apr 29 12:55:34 2020 GMT; NotAfter: Apr 10 23:59:59 2030 GMT
+---
+Server certificate
+-----BEGIN CERTIFICATE-----
+==== CONFIG_AFTER ====
+{
+  "log": {
+    "loglevel": "warning"
+  },
+  "dns": {
+    "servers": [
+      "1.1.1.1",
+      "8.8.8.8"
+    ],
+    "queryStrategy": "UseIPv4"
+  },
+  "inbounds": [
+    {
+      "tag": "vless-reality-2053",
+      "listen": "0.0.0.0",
+      "port": 2053,
+      "protocol": "vless",
+      "settings": {
+        "clients": [
+          {
+            "id": "190c0d9a-3218-4c77-b7e4-17b9a45c5667"
+          }
+        ],
+        "decryption": "none"
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "reality",
+        "realitySettings": {
+          "show": false,
+          "dest": "www.apple.com:443",
+          "xver": 0,
+          "serverNames": [
+            "www.apple.com"
+          ],
+          "privateKey": "8Ac8iy_oHKIBpECFUGaCv1RKS0BZ6HkJ7LrK4bHxh00",
+          "shortIds": [
+            "",
+            "853f"
+          ]
+        }
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": [
+          "http",
+          "tls",
+          "quic"
+        ]
+      }
+    },
+    {
+      "tag": "vless-reality-443",
+      "listen": "0.0.0.0",
+      "port": 443,
+      "protocol": "vless",
+      "settings": {
+        "clients": [
+          {
+            "id": "190c0d9a-3218-4c77-b7e4-17b9a45c5667"
+          }
+        ],
+        "decryption": "none"
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "reality",
+        "realitySettings": {
+          "show": false,
+          "dest": "www.apple.com:443",
+          "xver": 0,
+          "serverNames": [
+            "www.apple.com"
+          ],
+          "privateKey": "8Ac8iy_oHKIBpECFUGaCv1RKS0BZ6HkJ7LrK4bHxh00",
+          "shortIds": [
+            "",
+            "879f7ed2037c8fd4"
+          ]
+        }
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": [
+          "http",
+          "tls",
+          "quic"
+        ]
+      }
+    }
+  ],
+  "outbounds": [
+    {
+      "protocol": "freedom",
+      "tag": "direct"
+    },
+    {
+      "protocol": "blackhole",
+      "tag": "block"
+    }
+  ]
+}
+==== REPORT_FOR_PARENT ====
+PRIVATE_KEY_REDACTED=8Ac8...xh00
+UUID=190c0d9a-3218-4c77-b7e4-17b9a45c5667
+PBK=UPKviARwPwkGb9dhTL2iT4HhiDNvu66kVsvWkAziNBg
+SID_2053=853f
+SID_443=879f7ed2037c8fd4
+URL_2053=vless://190c0d9a-3218-4c77-b7e4-17b9a45c5667@92.51.45.35:2053?encryption=none&security=reality&sni=www.apple.com&fp=chrome&pbk=UPKviARwPwkGb9dhTL2iT4HhiDNvu66kVsvWkAziNBg&sid=853f&type=tcp&packetEncoding=xudp#WG-fixed-2053
+URL_443=vless://190c0d9a-3218-4c77-b7e4-17b9a45c5667@92.51.45.35:443?encryption=none&security=reality&sni=www.apple.com&fp=chrome&pbk=UPKviARwPwkGb9dhTL2iT4HhiDNvu66kVsvWkAziNBg&sid=879f7ed2037c8fd4&type=tcp&packetEncoding=xudp#WG-fixed-443
+XRAY_ACTIVE=active
+ALL_DONE

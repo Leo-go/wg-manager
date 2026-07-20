@@ -1,0 +1,193 @@
+CONNECTED
+==== STATUS ====
+● xray.service - Xray Service
+     Loaded: loaded (/etc/systemd/system/xray.service; enabled; preset: enabled)
+    Drop-In: /etc/systemd/system/xray.service.d
+             └─10-donot_touch_single_conf.conf
+     Active: active (running) since Mon 2026-07-20 12:54:14 UTC; 23min ago
+       Docs: https://github.com/xtls
+   Main PID: 16923 (xray)
+      Tasks: 6 (limit: 1107)
+     Memory: 6.5M (peak: 8.3M)
+        CPU: 172ms
+     CGroup: /system.slice/xray.service
+             └─16923 /usr/local/bin/xray run -config /usr/local/etc/xray/config.json
+
+Jul 20 12:54:21 ams-1-vm-1p14 xray[16923]: 2026/07/20 12:54:21.284594 [Info] transport/internet/tcp: REALITY: processed invalid connection from 91.228.99.82:65293: authentication failed or validation criteria not met
+Jul 20 12:54:21 ams-1-vm-1p14 xray[16923]: 2026/07/20 12:54:21.505990 [Info] transport/internet/tcp: REALITY: processed invalid connection from 91.228.99.82:65289: authentication failed or validation criteria not met
+Jul 20 12:54:22 ams-1-vm-1p14 xray[16923]: 2026/07/20 12:54:22.206933 [Info] transport/internet/tcp: REALITY: processed invalid connection from 91.228.99.82:65288: authentication failed or validation criteria not met
+Jul 20 12:54:24 ams-1-vm-1p14 xray[16923]: 2026/07/20 12:54:24.880824 [Info] transport/internet/tcp: REALITY: processed invalid connection from 91.228.99.82:65320: authentication failed or validation criteria not met
+Jul 20 12:54:24 ams-1-vm-1p14 xray[16923]: 2026/07/20 12:54:24.883467 [Info] transport/internet/tcp: REALITY: processed invalid connection from 91.228.99.82:65312: authentication failed or validation criteria not met
+Jul 20 12:54:24 ams-1-vm-1p14 xray[16923]: 2026/07/20 12:54:24.884899 [Info] transport/internet/tcp: REALITY: processed invalid connection from 91.228.99.82:65317: authentication failed or validation criteria not met
+Jul 20 12:54:24 ams-1-vm-1p14 xray[16923]: 2026/07/20 12:54:24.896944 [Info] transport/internet/tcp: REALITY: processed invalid connection from 91.228.99.82:65315: authentication failed or validation criteria not met
+Jul 20 12:54:26 ams-1-vm-1p14 xray[16923]: 2026/07/20 12:54:26.771588 [Info] transport/internet/tcp: REALITY: processed invalid connection from 91.228.99.82:65339: authentication failed or validation criteria not met
+Jul 20 12:54:26 ams-1-vm-1p14 xray[16923]: 2026/07/20 12:54:26.812985 [Info] transport/internet/tcp: REALITY: processed invalid connection from 91.228.99.82:65343: failed to read client hello
+Jul 20 13:16:52 ams-1-vm-1p14 xray[16923]: 2026/07/20 13:16:52.422529 [Info] transport/internet/tcp: REALITY: processed invalid connection from 51.254.49.105:58441: failed to read client hello
+==== SS ====
+LISTEN 0      4096               *:2053             *:*    users:(("xray",pid=16923,fd=3))                                                                                                                                   
+==== VERSION ====
+Xray 26.7.11 (Xray, Penetrates Everything.) 50231ea (go1.26.5 linux/amd64)
+A unified platform for anti-censorship.
+==== CONFIG ====
+{
+  "log": {
+    "loglevel": "debug"
+  },
+  "inbounds": [
+    {
+      "listen": "0.0.0.0",
+      "port": 2053,
+      "protocol": "vless",
+      "settings": {
+        "clients": [
+          {
+            "id": "190c0d9a-3218-4c77-b7e4-17b9a45c5667"
+          }
+        ],
+        "decryption": "none"
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "reality",
+        "realitySettings": {
+          "show": false,
+          "dest": "www.apple.com:443",
+          "serverNames": [
+            "www.apple.com"
+          ],
+          "privateKey": "8Ac8iy_oHKIBpECFUGaCv1RKS0BZ6HkJ7LrK4bHxh00",
+          "shortIds": [
+            "",
+            "853f"
+          ],
+          "xver": 0
+        }
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": [
+          "http",
+          "tls",
+          "quic"
+        ]
+      }
+    }
+  ],
+  "outbounds": [
+    {
+      "protocol": "freedom",
+      "tag": "direct"
+    }
+  ],
+  "dns": {
+    "servers": [
+      "1.1.1.1",
+      "8.8.8.8"
+    ],
+    "queryStrategy": "UseIPv4"
+  }
+}==== DEST ====
+HTTP/1.1 200 OK
+Server: Apple
+Content-Type: text/html; charset=utf-8
+X-Frame-Options: SAMEORIGIN
+X-Xss-Protection: 1; mode=block
+X-Content-Type-Options: nosniff
+Strict-Transport-Security: max-age=31536000; includeSubdomains; preload
+Referrer-Policy: no-referrer-when-downgrade
+Content-Security-Policy: default-src 'self' blob: data: *.akamaized.net *.apple.com *.apple-mapkit.com *.cdn-apple.com *.organicfruitapps.com; child-src blob: mailto: embed.music.apple.com embed.podcasts.apple.com https://recyclingprogram.apple.com https://smb.apple.com https://nova.apple.com swdlp.apple.com www.apple.com www.instagram.com platform.twitter.com www.youtube-nocookie.com; img-src 'unsafe-inline' blob: data: *.apple.com *.apple-mapkit.com *.cdn-apple.com *.mzstatic.com; script-src 'unsafe-inline' 'unsafe-eval' blob: *.apple.com *.apple-mapkit.com www.instagram.com platform.twitter.com; style-src 'unsafe-inline' *.apple.com
+Cache-Control: max-age=211
+Expires: Mon, 20 Jul 2026 13:21:22 GMT
+Date: Mon, 20 Jul 2026 13:17:51 GMT
+depth=2 C = US, O = DigiCert Inc, OU = www.digicert.com, CN = DigiCert Global Root G2
+verify return:1
+depth=1 C = US, O = Apple Inc., CN = Apple Public EV Server RSA CA 1 - G1
+verify return:1
+depth=0 businessCategory = Private Organization, jurisdictionC = US, jurisdictionST = California, serialNumber = C0806592, C = US, ST = California, L = Cupertino, O = Apple Inc., CN = www.apple.com
+verify return:1
+CONNECTED(00000003)
+---
+Certificate chain
+ 0 s:businessCategory = Private Organization, jurisdictionC = US, jurisdictionST = California, serialNumber = C0806592, C = US, ST = California, L = Cupertino, O = Apple Inc., CN = www.apple.com
+   i:C = US, O = Apple Inc., CN = Apple Public EV Server RSA CA 1 - G1
+   a:PKEY: rsaEncryption, 2048 (bit); sigalg: RSA-SHA256
+   v:NotBefore: Jul  2 22:11:57 2026 GMT; NotAfter: Dec 16 18:31:25 2026 GMT
+ 1 s:C = US, O = Apple Inc., CN = Apple Public EV Server RSA CA 1 - G1
+   i:C = US, O = DigiCert Inc, OU = www.digicert.com, CN = DigiCert Global Root G2
+   a:PKEY: rsaEncryption, 2048 (bit); sigalg: RSA-SHA256
+   v:NotBefore: Apr 29 12:55:34 2020 GMT; NotAfter: Apr 10 23:59:59 2030 GMT
+---
+Server certificate
+-----BEGIN CERTIFICATE-----
+MIIHeTCCBmGgAwIBAgIQbIae6QhrOwsVUsCrmmEzyTANBgkqhkiG9w0BAQsFADBR
+MQswCQYDVQQGEwJVUzETMBEGA1UEChMKQXBwbGUgSW5jLjEtMCsGA1UEAxMkQXBw
+bGUgUHVibGljIEVWIFNlcnZlciBSU0EgQ0EgMSAtIEcxMB4XDTI2MDcwMjIyMTE1
+N1oXDTI2MTIxNjE4MzEyNVowgccxHTAbBgNVBA8MFFByaXZhdGUgT3JnYW5pemF0
+aW9uMRMwEQYLKwYBBAGCNzwCAQMTAlVTMRswGQYLKwYBBAGCNzwCAQIMCkNhbGlm
+==== UFW ====
+Status: inactive
+==== IPTABLES ====
+Chain INPUT (policy ACCEPT)
+target     prot opt source               destination         
+==== JOURNAL ====
+Jul 20 12:36:09 ams-1-vm-1p14 systemd[1]: Stopping xray.service - Xray Service...
+Jul 20 12:36:09 ams-1-vm-1p14 systemd[1]: xray.service: Deactivated successfully.
+Jul 20 12:36:09 ams-1-vm-1p14 systemd[1]: Stopped xray.service - Xray Service.
+Jul 20 12:36:14 ams-1-vm-1p14 systemd[1]: /etc/systemd/system/xray.service:7: Special user nobody configured, this is not safe!
+Jul 20 12:36:16 ams-1-vm-1p14 systemd[1]: /etc/systemd/system/xray.service:7: Special user nobody configured, this is not safe!
+Jul 20 12:36:16 ams-1-vm-1p14 systemd[1]: /etc/systemd/system/xray.service:7: Special user nobody configured, this is not safe!
+Jul 20 12:36:28 ams-1-vm-1p14 systemd[1]: Started xray.service - Xray Service.
+Jul 20 12:36:28 ams-1-vm-1p14 xray[16589]: Xray 26.7.11 (Xray, Penetrates Everything.) 50231ea (go1.26.5 linux/amd64)
+Jul 20 12:36:28 ams-1-vm-1p14 xray[16589]: A unified platform for anti-censorship.
+Jul 20 12:36:28 ams-1-vm-1p14 xray[16589]: 2026/07/20 12:36:28.588951 [Info] infra/conf/serial: Reading config: &{Name:/usr/local/etc/xray/config.json Format:json}
+Jul 20 12:36:28 ams-1-vm-1p14 xray[16589]: 2026/07/20 12:36:28.590234 [Warning] infra/conf: REALITY: Choosing apple, icloud, etc. as the target may get your IP blocked by the GFW
+Jul 20 12:36:28 ams-1-vm-1p14 xray[16589]: 2026/07/20 12:36:28.590251 [Warning] infra/conf: REALITY: Listening on non-443 ports may get your IP blocked by the GFW
+Jul 20 12:36:28 ams-1-vm-1p14 xray[16589]: 2026/07/20 12:36:28.594556 [Warning] core: Xray 26.7.11 started
+Jul 20 12:36:28 ams-1-vm-1p14 systemd[1]: /etc/systemd/system/xray.service:7: Special user nobody configured, this is not safe!
+Jul 20 12:51:10 ams-1-vm-1p14 systemd[1]: Stopping xray.service - Xray Service...
+Jul 20 12:51:10 ams-1-vm-1p14 systemd[1]: xray.service: Deactivated successfully.
+Jul 20 12:51:10 ams-1-vm-1p14 systemd[1]: Stopped xray.service - Xray Service.
+Jul 20 12:51:10 ams-1-vm-1p14 systemd[1]: Started xray.service - Xray Service.
+Jul 20 12:51:10 ams-1-vm-1p14 xray[16884]: Xray 26.7.11 (Xray, Penetrates Everything.) 50231ea (go1.26.5 linux/amd64)
+Jul 20 12:51:10 ams-1-vm-1p14 xray[16884]: A unified platform for anti-censorship.
+Jul 20 12:51:10 ams-1-vm-1p14 xray[16884]: 2026/07/20 12:51:10.248282 [Warning] core: Xray 26.7.11 started
+Jul 20 12:51:10 ams-1-vm-1p14 xray[16884]: 2026/07/20 12:51:10.248686 [Info] infra/conf/serial: Reading config: &{Name:/usr/local/etc/xray/config.json Format:json}
+Jul 20 12:51:10 ams-1-vm-1p14 xray[16884]: 2026/07/20 12:51:10.248705 [Warning] infra/conf: REALITY: Choosing apple, icloud, etc. as the target may get your IP blocked by the GFW
+Jul 20 12:51:10 ams-1-vm-1p14 xray[16884]: 2026/07/20 12:51:10.248716 [Warning] infra/conf: REALITY: Listening on non-443 ports may get your IP blocked by the GFW
+Jul 20 12:54:14 ams-1-vm-1p14 systemd[1]: Stopping xray.service - Xray Service...
+Jul 20 12:54:14 ams-1-vm-1p14 systemd[1]: xray.service: Deactivated successfully.
+Jul 20 12:54:14 ams-1-vm-1p14 systemd[1]: Stopped xray.service - Xray Service.
+Jul 20 12:54:14 ams-1-vm-1p14 systemd[1]: Started xray.service - Xray Service.
+Jul 20 12:54:14 ams-1-vm-1p14 xray[16923]: Xray 26.7.11 (Xray, Penetrates Everything.) 50231ea (go1.26.5 linux/amd64)
+Jul 20 12:54:14 ams-1-vm-1p14 xray[16923]: A unified platform for anti-censorship.
+Jul 20 12:54:14 ams-1-vm-1p14 xray[16923]: 2026/07/20 12:54:14.104418 [Info] infra/conf/serial: Reading config: &{Name:/usr/local/etc/xray/config.json Format:json}
+Jul 20 12:54:14 ams-1-vm-1p14 xray[16923]: 2026/07/20 12:54:14.104646 [Warning] infra/conf: REALITY: Choosing apple, icloud, etc. as the target may get your IP blocked by the GFW
+Jul 20 12:54:14 ams-1-vm-1p14 xray[16923]: 2026/07/20 12:54:14.104662 [Warning] infra/conf: REALITY: Listening on non-443 ports may get your IP blocked by the GFW
+Jul 20 12:54:14 ams-1-vm-1p14 xray[16923]: 2026/07/20 12:54:14.104682 [Debug] app/log: Logger started
+Jul 20 12:54:14 ams-1-vm-1p14 xray[16923]: 2026/07/20 12:54:14.104687 [Info] app/dns: DNS: created UDP client initialized for 1.1.1.1:53
+Jul 20 12:54:14 ams-1-vm-1p14 xray[16923]: 2026/07/20 12:54:14.104691 [Info] app/dns: DNS: created UDP client initialized for 8.8.8.8:53
+Jul 20 12:54:14 ams-1-vm-1p14 xray[16923]: 2026/07/20 12:54:14.104709 [Debug] app/proxyman/inbound: creating stream worker on 0.0.0.0:2053
+Jul 20 12:54:14 ams-1-vm-1p14 xray[16923]: 2026/07/20 12:54:14.104715 [Info] transport/internet/tcp: listening TCP on 0.0.0.0:2053
+Jul 20 12:54:14 ams-1-vm-1p14 xray[16923]: 2026/07/20 12:54:14.104719 [Warning] core: Xray 26.7.11 started
+Jul 20 12:54:21 ams-1-vm-1p14 xray[16923]: 2026/07/20 12:54:21.211276 [Info] transport/internet/tcp: REALITY: processed invalid connection from 91.228.99.82:65290: authentication failed or validation criteria not met
+Jul 20 12:54:21 ams-1-vm-1p14 xray[16923]: 2026/07/20 12:54:21.284594 [Info] transport/internet/tcp: REALITY: processed invalid connection from 91.228.99.82:65293: authentication failed or validation criteria not met
+Jul 20 12:54:21 ams-1-vm-1p14 xray[16923]: 2026/07/20 12:54:21.505990 [Info] transport/internet/tcp: REALITY: processed invalid connection from 91.228.99.82:65289: authentication failed or validation criteria not met
+Jul 20 12:54:22 ams-1-vm-1p14 xray[16923]: 2026/07/20 12:54:22.206933 [Info] transport/internet/tcp: REALITY: processed invalid connection from 91.228.99.82:65288: authentication failed or validation criteria not met
+Jul 20 12:54:24 ams-1-vm-1p14 xray[16923]: 2026/07/20 12:54:24.880824 [Info] transport/internet/tcp: REALITY: processed invalid connection from 91.228.99.82:65320: authentication failed or validation criteria not met
+Jul 20 12:54:24 ams-1-vm-1p14 xray[16923]: 2026/07/20 12:54:24.883467 [Info] transport/internet/tcp: REALITY: processed invalid connection from 91.228.99.82:65312: authentication failed or validation criteria not met
+Jul 20 12:54:24 ams-1-vm-1p14 xray[16923]: 2026/07/20 12:54:24.884899 [Info] transport/internet/tcp: REALITY: processed invalid connection from 91.228.99.82:65317: authentication failed or validation criteria not met
+Jul 20 12:54:24 ams-1-vm-1p14 xray[16923]: 2026/07/20 12:54:24.896944 [Info] transport/internet/tcp: REALITY: processed invalid connection from 91.228.99.82:65315: authentication failed or validation criteria not met
+Jul 20 12:54:26 ams-1-vm-1p14 xray[16923]: 2026/07/20 12:54:26.771588 [Info] transport/internet/tcp: REALITY: processed invalid connection from 91.228.99.82:65339: authentication failed or validation criteria not met
+Jul 20 12:54:26 ams-1-vm-1p14 xray[16923]: 2026/07/20 12:54:26.812985 [Info] transport/internet/tcp: REALITY: processed invalid connection from 91.228.99.82:65343: failed to read client hello
+Jul 20 13:16:52 ams-1-vm-1p14 xray[16923]: 2026/07/20 13:16:52.422529 [Info] transport/internet/tcp: REALITY: processed invalid connection from 51.254.49.105:58441: failed to read client hello
+==== TIME ====
+               Local time: Mon 2026-07-20 13:17:51 UTC
+           Universal time: Mon 2026-07-20 13:17:51 UTC
+                 RTC time: Mon 2026-07-20 13:17:51
+                Time zone: Etc/UTC (UTC, +0000)
+System clock synchronized: yes
+              NTP service: active
+          RTC in local TZ: no
+Mon Jul 20 13:17:51 UTC 2026
+2053_OPEN
+DIAG_DONE
