@@ -75,14 +75,15 @@ export default function AddServerDialog({
     try {
       const supabase = createClient();
       const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
+        data: { session },
+      } = await supabase.auth.getSession();
+      const userId = session?.user?.id;
+      if (!userId) throw new Error("Not authenticated");
 
       const { data, error: insertError } = await supabase
         .from("servers")
         .insert({
-          user_id: user.id,
+          user_id: userId,
           name,
           ip_address: ipAddress,
           ssh_port: Number.parseInt(sshPort, 10) || 22,

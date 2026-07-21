@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { CreditCard, LogOut, Server, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
+import { createClient } from "@/lib/supabase/client";
 
 const navItems = [
   { href: "/dashboard", label: "Servers", icon: Server },
@@ -13,9 +13,9 @@ const navItems = [
   { href: "/dashboard/billing", label: "Billing", icon: CreditCard },
 ];
 
-export function Sidebar() {
+export function Sidebar({ userEmail }: { userEmail: string | null }) {
   const pathname = usePathname();
-  const { user, loading, signOut } = useAuth();
+  const router = useRouter();
 
   return (
     <aside className="flex h-screen w-64 flex-col border-r border-border bg-card">
@@ -40,16 +40,22 @@ export function Sidebar() {
         ))}
       </nav>
       <div className="border-t border-border p-4">
-        {!loading && user && (
+        {userEmail && (
           <p className="mb-3 truncate px-1 text-xs text-muted-foreground">
-            {user.email}
+            {userEmail}
           </p>
         )}
         <Button
           variant="outline"
           className="w-full justify-start gap-2"
-          onClick={() => void signOut()}
-          disabled={loading}
+          onClick={() => {
+            void (async () => {
+              const supabase = createClient();
+              await supabase.auth.signOut();
+              router.push("/login");
+              router.refresh();
+            })();
+          }}
         >
           <LogOut className="h-4 w-4" />
           Log out

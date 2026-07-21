@@ -35,10 +35,10 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  // IMPORTANT: use getUser() — validates JWT with Auth server (not getSession)
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    data: { session },
+  } = await supabase.auth.getSession();
+  const user = session?.user ?? null;
 
   const pathname = request.nextUrl.pathname;
   const isDashboard = pathname.startsWith("/dashboard");
