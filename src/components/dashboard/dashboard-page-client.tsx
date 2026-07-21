@@ -3,11 +3,15 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Server as ServerIcon, Trash2 } from "lucide-react";
+import { Pencil, Server as ServerIcon, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { InstallationStatus, Server } from "@/lib/supabase/types";
 import AddServerDialog from "@/components/AddServerDialog";
+import { BuyVpsDialog } from "@/components/servers/buy-vps-dialog";
+import { EditServerDialog } from "@/components/servers/edit-server-dialog";
+import { GetStartedPartnerDialog } from "@/components/servers/get-started-partner-dialog";
 import { Button } from "@/components/ui/button";
+import { isTimewebApiBuyEnabled } from "@/lib/constants/partner";
 import {
   Table,
   TableBody,
@@ -65,8 +69,12 @@ export function DashboardPageClient({
 }) {
   const [servers, setServers] = useState<Server[]>(initialServers);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [partnerOpen, setPartnerOpen] = useState(false);
+  const [buyVpsOpen, setBuyVpsOpen] = useState(false);
+  const [editingServer, setEditingServer] = useState<Server | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const router = useRouter();
+  const showApiBuy = isTimewebApiBuyEnabled();
 
   useEffect(() => {
     setServers(initialServers);
@@ -104,9 +112,21 @@ export function DashboardPageClient({
 
   return (
     <div className="p-8">
-      <div className="mb-8 flex items-center justify-between">
+      <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-3xl font-bold tracking-tight">My Servers</h1>
-        <Button onClick={() => setDialogOpen(true)}>Add Server</Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="default" onClick={() => setPartnerOpen(true)}>
+            Get VPS via Timeweb
+          </Button>
+          <Button variant="outline" onClick={() => setDialogOpen(true)}>
+            Add Server
+          </Button>
+          {showApiBuy && (
+            <Button variant="ghost" onClick={() => setBuyVpsOpen(true)}>
+              Demo: API buy
+            </Button>
+          )}
+        </div>
       </div>
 
       {servers.length === 0 ? (
@@ -117,13 +137,19 @@ export function DashboardPageClient({
           <p className="text-center text-muted-foreground">
             No servers yet. Add your first VPS to get started.
           </p>
-          <Button
-            className="mt-6"
-            variant="outline"
-            onClick={() => setDialogOpen(true)}
-          >
-            Add Server
-          </Button>
+          <div className="mt-6 flex flex-wrap justify-center gap-2">
+            <Button onClick={() => setPartnerOpen(true)}>
+              Get VPS via Timeweb
+            </Button>
+            <Button variant="outline" onClick={() => setDialogOpen(true)}>
+              Add Server
+            </Button>
+            {showApiBuy && (
+              <Button variant="ghost" onClick={() => setBuyVpsOpen(true)}>
+                Demo: API buy
+              </Button>
+            )}
+          </div>
         </div>
       ) : (
         <div className="rounded-lg border border-border">
@@ -179,6 +205,15 @@ export function DashboardPageClient({
                         type="button"
                         variant="ghost"
                         size="sm"
+                        onClick={() => setEditingServer(server)}
+                        aria-label={`Edit ${server.name}`}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
                         className="text-destructive hover:text-destructive"
                         disabled={deletingId === server.id}
                         onClick={() => void handleDelete(server)}
@@ -200,6 +235,25 @@ export function DashboardPageClient({
         onClose={() => setDialogOpen(false)}
         onCreated={handleCreated}
       />
+      <GetStartedPartnerDialog
+        open={partnerOpen}
+        onClose={() => setPartnerOpen(false)}
+        onContinueAddServer={() => setDialogOpen(true)}
+      />
+      <EditServerDialog
+        server={editingServer}
+        open={Boolean(editingServer)}
+        onClose={() => setEditingServer(null)}
+        onSaved={(updated) => {
+          setServers((prev) =>
+            prev.map((s) => (s.id === updated.id ? { ...s, ...updated } : s))
+          );
+          router.refresh();
+        }}
+      />
+      {showApiBuy && (
+        <BuyVpsDialog open={buyVpsOpen} onClose={() => setBuyVpsOpen(false)} />
+      )}
     </div>
   );
 }

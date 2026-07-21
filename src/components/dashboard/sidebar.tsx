@@ -2,16 +2,12 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { CreditCard, LogOut, Server, Settings } from "lucide-react";
+import { LogOut, Server } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 
-const navItems = [
-  { href: "/dashboard", label: "Servers", icon: Server },
-  { href: "/dashboard/settings", label: "Settings", icon: Settings },
-  { href: "/dashboard/billing", label: "Billing", icon: CreditCard },
-];
+const navItems = [{ href: "/dashboard", label: "Servers", icon: Server }];
 
 export function Sidebar({ userEmail }: { userEmail: string | null }) {
   const pathname = usePathname();
@@ -29,7 +25,7 @@ export function Sidebar({ userEmail }: { userEmail: string | null }) {
             href={href}
             className={cn(
               "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-              pathname === href
+              pathname === href || pathname.startsWith(`${href}/`)
                 ? "bg-primary text-primary-foreground"
                 : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
             )}

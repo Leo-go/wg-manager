@@ -4,6 +4,7 @@ import { z } from "zod";
 import * as fs from "fs";
 import * as path from "path";
 import { createClient } from "@/lib/supabase/server";
+import { resolveSshAuth } from "@/lib/ssh/auth";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -17,11 +18,8 @@ const serverCredentialsSchema = z.object({
     .trim()
     .min(1, "Server is missing ip_address"),
   ssh_port: z.number().int().min(1).max(65535).nullable().optional(),
-  ssh_password: z
-    .union([z.string(), z.null(), z.undefined()])
-    .refine((value): value is string => typeof value === "string" && value.length > 0, {
-      message: "ssh_password is required for SSH setup",
-    }),
+  ssh_password: z.union([z.string(), z.null(), z.undefined()]).optional(),
+  ssh_private_key: z.union([z.string(), z.null(), z.undefined()]).optional(),
   sni_domain: z.string().nullable().optional(),
   vless_port: z.number().int().min(1).max(65535).nullable().optional(),
 });
@@ -102,6 +100,11 @@ function mapSshError(error: unknown): Error {
   if (/ENOTFOUND|getaddrinfo/i.test(message)) {
     return new Error("SSH connection failed: host not found (check ip_address)");
   }
+  if (/Cannot parse privateKey|Encrypted private OpenSSH key|passphrase/i.test(message)) {
+    return new Error(
+      "SSH private key is encrypted or invalid. Use a key created with an empty passphrase (`ssh-keygen -N \"\"`), or set WG_SSH_PRIVATE_KEY_PASSPHRASE to match the key password."
+    );
+  }
   return new Error(`SSH connection failed: ${message}`);
 }
 
@@ -171,6 +174,7 @@ export async function POST(
       ip_address: serverRow.ip_address,
       ssh_port: serverRow.ssh_port,
       ssh_password: serverRow.ssh_password,
+      ssh_private_key: serverRow.ssh_private_key,
       sni_domain: serverRow.sni_domain,
       vless_port: serverRow.vless_port,
     });
@@ -187,6 +191,18 @@ export async function POST(
     const sshPort = server.ssh_port || 22;
     const sni = server.sni_domain || "www.cloudflare.com";
     const vlessPort = server.vless_port || 443;
+
+    let sshAuth;
+    try {
+      sshAuth = resolveSshAuth({
+        sshPassword: server.ssh_password,
+        sshPrivateKey: server.ssh_private_key,
+      });
+    } catch (authErr) {
+      const message =
+        authErr instanceof Error ? authErr.message : "SSH auth missing";
+      return NextResponse.json({ error: message }, { status: 400 });
+    }
 
     await supabase
       .from("servers")
@@ -207,7 +223,9 @@ export async function POST(
 
     const ssh = new SSHClient();
 
-    console.log(`Connecting to ${server.ip_address}:${sshPort}...`);
+    console.log(
+      `Connecting to ${server.ip_address}:${sshPort} via ${sshAuth.type}...`
+    );
     try {
       await new Promise<void>((resolve, reject) => {
         ssh
@@ -217,8 +235,15 @@ export async function POST(
             host: server.ip_address,
             port: sshPort,
             username: "root",
-            password: server.ssh_password,
             readyTimeout: 30_000,
+            ...(sshAuth.type === "privateKey"
+              ? {
+                  privateKey: sshAuth.privateKey,
+                  ...(sshAuth.passphrase
+                    ? { passphrase: sshAuth.passphrase }
+                    : {}),
+                }
+              : { password: sshAuth.password }),
           });
       });
     } catch (sshError) {

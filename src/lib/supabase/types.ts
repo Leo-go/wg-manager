@@ -33,6 +33,9 @@ export type Server = {
   vless_config_url?: string | null;
   installation_status?: InstallationStatus | null;
   last_check?: string | null;
+  /** manual | timeweb | … (optional column — see scripts/timeweb-columns.sql) */
+  provider?: string | null;
+  provider_server_id?: string | null;
   status: ServerStatus;
   created_at: string;
   updated_at: string;
