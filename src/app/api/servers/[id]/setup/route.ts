@@ -118,15 +118,14 @@ function mapSshError(error: unknown): Error {
 
 export async function POST(
   _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: { id: string } }
 ) {
   let serverId = "";
   let fullOutput = "";
   const supabase = getSupabase();
 
   try {
-    const rawParams = await params;
-    const idResult = serverIdSchema.safeParse(rawParams.id);
+    const idResult = serverIdSchema.safeParse(context.params.id);
     if (!idResult.success) {
       const message =
         idResult.error.issues[0]?.message ?? "Invalid server id";
@@ -144,7 +143,10 @@ export async function POST(
     if (fetchError || !serverRow) {
       console.error("[setup] Server not found:", serverId, fetchError?.message);
       return NextResponse.json(
-        { error: "Server not found in database" },
+        {
+          error: "Server not found in database",
+          details: fetchError?.message ?? undefined,
+        },
         { status: 404 }
       );
     }
