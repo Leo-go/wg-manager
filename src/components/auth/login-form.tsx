@@ -6,8 +6,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useI18n } from "@/lib/i18n/provider";
 
 export function LoginForm() {
+  const { t } = useI18n();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
@@ -33,9 +35,7 @@ export function LoginForm() {
           password,
         });
         if (signUpError) throw signUpError;
-        setMessage(
-          "Account created. Check your email to confirm, or sign in if confirmation is disabled."
-        );
+        setMessage(t.auth.accountCreated);
         setIsSignUp(false);
         return;
       }
@@ -50,7 +50,7 @@ export function LoginForm() {
       router.refresh();
     } catch (err) {
       const messageText =
-        err instanceof Error ? err.message : "Authentication failed";
+        err instanceof Error ? err.message : t.auth.authFailed;
       setError(messageText);
     } finally {
       setLoading(false);
@@ -62,17 +62,15 @@ export function LoginForm() {
       <div className="w-full max-w-md space-y-6 rounded-lg border border-border bg-card p-8 shadow-lg">
         <div className="space-y-2 text-center">
           <h1 className="text-2xl font-bold tracking-tight">
-            {isSignUp ? "Create Account" : "Sign In"}
+            {isSignUp ? t.auth.createAccount : t.auth.signIn}
           </h1>
-          <p className="text-sm text-muted-foreground">
-            WG Manager — manage your WireGuard servers
-          </p>
+          <p className="text-sm text-muted-foreground">{t.auth.subtitle}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <label htmlFor="email" className="text-sm font-medium">
-              Email
+              {t.auth.email}
             </label>
             <Input
               id="email"
@@ -86,7 +84,7 @@ export function LoginForm() {
 
           <div className="space-y-2">
             <label htmlFor="password" className="text-sm font-medium">
-              Password
+              {t.auth.password}
             </label>
             <Input
               id="password"
@@ -112,12 +110,16 @@ export function LoginForm() {
           )}
 
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Loading..." : isSignUp ? "Sign Up" : "Sign In"}
+            {loading
+              ? t.auth.loading
+              : isSignUp
+                ? t.auth.signUp
+                : t.auth.signIn}
           </Button>
         </form>
 
         <p className="text-center text-sm text-muted-foreground">
-          {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
+          {isSignUp ? t.auth.haveAccount : t.auth.noAccount}{" "}
           <button
             type="button"
             onClick={() => {
@@ -127,13 +129,13 @@ export function LoginForm() {
             }}
             className="font-medium text-primary hover:underline"
           >
-            {isSignUp ? "Sign In" : "Sign Up"}
+            {isSignUp ? t.auth.signIn : t.auth.signUp}
           </button>
         </p>
 
         <p className="text-center text-sm">
           <Link href="/" className="text-muted-foreground hover:underline">
-            Back to home
+            {t.auth.backHome}
           </Link>
         </p>
       </div>

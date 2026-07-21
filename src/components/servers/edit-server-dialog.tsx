@@ -13,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useI18n } from "@/lib/i18n/provider";
 
 interface EditServerDialogProps {
   server: Server | null;
@@ -27,6 +28,8 @@ export function EditServerDialog({
   onClose,
   onSaved,
 }: EditServerDialogProps) {
+  const { t } = useI18n();
+  const e = t.editServer;
   const [name, setName] = useState("");
   const [ipAddress, setIpAddress] = useState("");
   const [sshPort, setSshPort] = useState("22");
@@ -45,8 +48,8 @@ export function EditServerDialog({
     if (!next) onClose();
   };
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const handleSubmit = async (ev: FormEvent<HTMLFormElement>) => {
+    ev.preventDefault();
     if (!server) return;
 
     setError("");
@@ -57,12 +60,12 @@ export function EditServerDialog({
     const port = Number.parseInt(sshPort, 10) || 22;
 
     if (!trimmedName) {
-      setError("Name is required");
+      setError(e.errors.nameRequired);
       setLoading(false);
       return;
     }
     if (!trimmedIp) {
-      setError("IP address is required");
+      setError(e.errors.ipRequired);
       setLoading(false);
       return;
     }
@@ -81,12 +84,12 @@ export function EditServerDialog({
         .single();
 
       if (updateError) throw updateError;
-      if (!data) throw new Error("Update failed");
+      if (!data) throw new Error(e.errors.failed);
 
       onSaved(data as Server);
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update server");
+      setError(err instanceof Error ? err.message : e.errors.failed);
     } finally {
       setLoading(false);
     }
@@ -96,38 +99,36 @@ export function EditServerDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Edit server</DialogTitle>
+          <DialogTitle>{e.title}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
+        <form onSubmit={(ev) => void handleSubmit(ev)} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="edit-name">Name</Label>
+            <Label htmlFor="edit-name">{e.name}</Label>
             <Input
               id="edit-name"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(ev) => setName(ev.target.value)}
               required
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="edit-ip">IPv4 address</Label>
+            <Label htmlFor="edit-ip">{e.ipv4}</Label>
             <Input
               id="edit-ip"
               value={ipAddress}
-              onChange={(e) => setIpAddress(e.target.value)}
+              onChange={(ev) => setIpAddress(ev.target.value)}
               placeholder="123.45.67.89"
               required
             />
-            <p className="text-xs text-muted-foreground">
-              Fix a mistyped IP here, then run Setup again if needed.
-            </p>
+            <p className="text-xs text-muted-foreground">{e.ipv4Tip}</p>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="edit-ssh-port">SSH port</Label>
+            <Label htmlFor="edit-ssh-port">{e.sshPort}</Label>
             <Input
               id="edit-ssh-port"
               type="number"
               value={sshPort}
-              onChange={(e) => setSshPort(e.target.value)}
+              onChange={(ev) => setSshPort(ev.target.value)}
             />
           </div>
           {error && (
@@ -137,10 +138,10 @@ export function EditServerDialog({
           )}
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
+              {t.common.cancel}
             </Button>
             <Button type="submit" disabled={loading || !server}>
-              {loading ? "Saving…" : "Save"}
+              {loading ? e.saving : e.save}
             </Button>
           </DialogFooter>
         </form>

@@ -3,11 +3,11 @@ export const DEFAULT_VLESS_PORT = 443;
 export const DEFAULT_SHORT_ID = "6d5a6f5b";
 
 export const SNI_PRESET_OPTIONS = [
-  { value: "www.cloudflare.com", label: "www.cloudflare.com (Recommended)" },
-  { value: "www.apple.com", label: "www.apple.com" },
-  { value: "www.microsoft.com", label: "www.microsoft.com" },
-  { value: "dl.google.com", label: "dl.google.com" },
-  { value: "custom", label: "Custom" },
+  { value: "www.cloudflare.com", id: "cloudflare" },
+  { value: "www.apple.com", id: "apple" },
+  { value: "www.microsoft.com", id: "microsoft" },
+  { value: "dl.google.com", id: "google" },
+  { value: "custom", id: "custom" },
 ] as const;
 
 export type SniPresetValue = (typeof SNI_PRESET_OPTIONS)[number]["value"];

@@ -23,6 +23,8 @@ import {
   resolveSniDomain,
   type SniPresetValue,
 } from "@/lib/constants/sni";
+import { isRuRelayEnabled } from "@/lib/constants/features";
+import { AddRuRelayDialog } from "@/components/servers/add-ru-relay-dialog";
 import { DiagnosticsPanel } from "@/components/servers/diagnostics-panel";
 import { SniDomainField } from "@/components/servers/sni-domain-field";
 import { Button } from "@/components/ui/button";
@@ -34,55 +36,54 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n/provider";
+import type { Dictionary } from "@/lib/i18n/types";
 
-const SETUP_STEPS = [
-  { id: "connect", label: "Connect via SSH" },
-  { id: "upload", label: "Upload installer script" },
-  { id: "update", label: "Update system packages" },
-  { id: "install", label: "Install Xray / VLESS Reality" },
-  { id: "configure", label: "Generate keys & config" },
-  { id: "finalize", label: "Save VLESS URL" },
-] as const;
-
-function formatSetupError(message: string): string {
+function formatSetupError(
+  message: string,
+  errors: Dictionary["setup"]["errors"]
+): string {
   const portInUse = message.match(/Port\s+(\d+)\s+is already in use/i);
   if (portInUse) {
-    return `Script execution failed: port ${portInUse[1]} is already in use. Stop the conflicting service on the VPS, then retry.`;
+    return errors.portInUse.replace("{port}", portInUse[1]);
   }
   if (/address already in use/i.test(message)) {
-    return "Script execution failed: port is already in use. Stop the conflicting service on the VPS, then retry.";
+    return errors.portInUseGeneric;
   }
   if (/SSH connection failed/i.test(message)) {
     return message;
   }
   if (/missing ssh_password|ssh_password is required/i.test(message)) {
-    return "Cannot start setup: SSH password is missing. Edit or re-add the server with a password.";
+    return errors.missingPassword;
   }
   if (/missing ip_address|ip_address cannot be empty/i.test(message)) {
-    return "Cannot start setup: server IP address is missing.";
+    return errors.missingIp;
   }
   if (/Server not found/i.test(message)) {
-    return "Server not found. It may have been deleted — return to the dashboard.";
+    return errors.serverNotFound;
   }
   if (/could not parse VLESS/i.test(message)) {
-    return "Setup finished on the VPS but the app could not read the VLESS URL. Check diagnostics and retry.";
+    return errors.parseVless;
   }
   return message;
 }
 
 type UiPhase = "idle" | "running" | "success" | "error";
 
-function statusLabel(status: InstallationStatus | null | undefined) {
+function statusLabel(
+  status: InstallationStatus | null | undefined,
+  s: Dictionary["setup"]
+) {
   switch (status) {
     case "completed":
-      return "Ready";
+      return s.statusReady;
     case "installing":
-      return "Installing";
+      return s.statusInstalling;
     case "error":
-      return "Failed";
+      return s.statusFailed;
     case "pending":
     default:
-      return "Pending setup";
+      return s.statusPending;
   }
 }
 
@@ -100,6 +101,20 @@ function statusClass(status: InstallationStatus | null | undefined) {
 }
 
 export default function ServerSetupPage() {
+  const { t } = useI18n();
+  const s = t.setup;
+  const SETUP_STEPS = useMemo(
+    () =>
+      [
+        { id: "connect", label: s.stepConnect },
+        { id: "upload", label: s.stepUpload },
+        { id: "update", label: s.stepUpdate },
+        { id: "install", label: s.stepInstall },
+        { id: "configure", label: s.stepConfigure },
+        { id: "finalize", label: s.stepFinalize },
+      ] as const,
+    [t]
+  );
   const params = useParams<{ id: string }>();
   const serverId = params.id;
 
@@ -116,6 +131,10 @@ export default function ServerSetupPage() {
   );
   const [customSni, setCustomSni] = useState("");
   const [copied, setCopied] = useState(false);
+  const [copiedRelay, setCopiedRelay] = useState(false);
+  const [relayUrl, setRelayUrl] = useState("");
+  const [relayQrDataUrl, setRelayQrDataUrl] = useState("");
+  const [relayDialogOpen, setRelayDialogOpen] = useState(false);
   const stepTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const clearStepTimer = useCallback(() => {
@@ -134,6 +153,15 @@ export default function ServerSetupPage() {
     setQrDataUrl(dataUrl);
   }, []);
 
+  const generateRelayQr = useCallback(async (url: string) => {
+    const dataUrl = await QRCode.toDataURL(url, {
+      width: 280,
+      margin: 2,
+      color: { dark: "#000000", light: "#ffffff" },
+    });
+    setRelayQrDataUrl(dataUrl);
+  }, []);
+
   const loadServer = useCallback(async () => {
     setLoading(true);
     const supabase = createClient();
@@ -144,7 +172,7 @@ export default function ServerSetupPage() {
       .single();
 
     if (fetchError || !data) {
-      setError(fetchError?.message ?? "Server not found");
+      setError(fetchError?.message ?? s.serverNotFound);
       setServer(null);
       setLoading(false);
       return;
@@ -164,7 +192,7 @@ export default function ServerSetupPage() {
       void generateQr(nextServer.vless_config_url);
     } else if (nextServer.installation_status === "error") {
       setPhase("error");
-      setError("Previous setup failed. You can retry installation.");
+      setError(s.previousFailed);
     } else if (nextServer.installation_status === "installing") {
       setPhase("running");
       setActiveStep(2);
@@ -172,8 +200,16 @@ export default function ServerSetupPage() {
       setPhase("idle");
     }
 
+    if (nextServer.relay_vless_config_url) {
+      setRelayUrl(nextServer.relay_vless_config_url);
+      void generateRelayQr(nextServer.relay_vless_config_url);
+    } else {
+      setRelayUrl("");
+      setRelayQrDataUrl("");
+    }
+
     setLoading(false);
-  }, [generateQr, serverId]);
+  }, [SETUP_STEPS.length, generateQr, generateRelayQr, s.previousFailed, s.serverNotFound, serverId]);
 
   useEffect(() => {
     void loadServer();
@@ -237,7 +273,7 @@ export default function ServerSetupPage() {
 
       if (!response.ok || !payload.success || !payload.vlessConfigUrl) {
         throw new Error(
-          formatSetupError(payload.error || "Setup failed")
+          formatSetupError(payload.error || s.setupFailed, s.errors)
         );
       }
 
@@ -250,7 +286,8 @@ export default function ServerSetupPage() {
       clearStepTimer();
       setPhase("error");
       const message = formatSetupError(
-        err instanceof Error ? err.message : "Setup failed"
+        err instanceof Error ? err.message : s.setupFailed,
+        s.errors
       );
       setError(message);
       if (latestDiagnostics) {
@@ -259,9 +296,12 @@ export default function ServerSetupPage() {
       await loadServer();
     }
   }, [
+    SETUP_STEPS.length,
     clearStepTimer,
     generateQr,
     loadServer,
+    s.errors,
+    s.setupFailed,
     saveSniDomain,
     serverId,
     startProgressAnimation,
@@ -274,11 +314,28 @@ export default function ServerSetupPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleCopyRelay = async () => {
+    if (!relayUrl) return;
+    await navigator.clipboard.writeText(relayUrl);
+    setCopiedRelay(true);
+    setTimeout(() => setCopiedRelay(false), 2000);
+  };
+
+  const isRelayServer = server?.role === "relay";
+  const canAddRelay =
+    isRuRelayEnabled() &&
+    Boolean(server) &&
+    !isRelayServer &&
+    phase === "success" &&
+    Boolean(vlessUrl);
+
   const canStart = useMemo(() => {
     if (!server) return false;
     if (phase === "running") return false;
     return (
-      server.installation_status !== "completed" || phase === "error" || !vlessUrl
+      server.installation_status !== "completed" ||
+      phase === "error" ||
+      !vlessUrl
     );
   }, [phase, server, vlessUrl]);
 
@@ -286,7 +343,7 @@ export default function ServerSetupPage() {
     return (
       <div className="flex min-h-[50vh] items-center justify-center p-8 text-muted-foreground">
         <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-        Loading server...
+        {t.common.loading}
       </div>
     );
   }
@@ -294,9 +351,9 @@ export default function ServerSetupPage() {
   if (!server) {
     return (
       <div className="space-y-4 p-8">
-        <p className="text-destructive">{error || "Server not found"}</p>
+        <p className="text-destructive">{error || s.serverNotFound}</p>
         <Button asChild variant="outline">
-          <Link href="/dashboard">Back to dashboard</Link>
+          <Link href="/dashboard">{s.backServers}</Link>
         </Button>
       </div>
     );
@@ -308,17 +365,15 @@ export default function ServerSetupPage() {
         <Button asChild variant="ghost" size="sm">
           <Link href="/dashboard">
             <ArrowLeft className="mr-1 h-4 w-4" />
-            Back
+            {s.back}
           </Link>
         </Button>
       </div>
 
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Setup VPN</h1>
-          <p className="mt-1 text-muted-foreground">
-            Install VLESS Reality on this VPS over SSH
-          </p>
+          <h1 className="text-3xl font-bold tracking-tight">{s.title}</h1>
+          <p className="mt-1 text-muted-foreground">{s.subtitle}</p>
         </div>
         <span
           className={cn(
@@ -326,7 +381,7 @@ export default function ServerSetupPage() {
             statusClass(server.installation_status)
           )}
         >
-          {statusLabel(server.installation_status)}
+          {statusLabel(server.installation_status, s)}
         </span>
       </div>
 
@@ -336,25 +391,25 @@ export default function ServerSetupPage() {
             <ServerIcon className="h-5 w-5" />
             {server.name}
           </CardTitle>
-          <CardDescription>Server connection details</CardDescription>
+          <CardDescription>{s.details}</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3 text-sm sm:grid-cols-2">
           <div>
-            <p className="text-muted-foreground">IP Address</p>
+            <p className="text-muted-foreground">{s.ip}</p>
             <p className="font-medium">{server.ip_address}</p>
           </div>
           <div>
-            <p className="text-muted-foreground">SSH Port</p>
+            <p className="text-muted-foreground">{s.sshPort}</p>
             <p className="font-medium">{server.ssh_port}</p>
           </div>
           <div>
-            <p className="text-muted-foreground">SNI Domain</p>
+            <p className="text-muted-foreground">{s.sni}</p>
             <p className="font-medium">
               {displaySniDomain(server.sni_domain)}
             </p>
           </div>
           <div>
-            <p className="text-muted-foreground">VLESS Port</p>
+            <p className="text-muted-foreground">{s.vlessPort}</p>
             <p className="font-medium">{displayVlessPort(server.vless_port)}</p>
           </div>
         </CardContent>
@@ -362,10 +417,8 @@ export default function ServerSetupPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Installation</CardTitle>
-          <CardDescription>
-            This usually takes a few minutes. Keep this page open.
-          </CardDescription>
+          <CardTitle className="text-lg">{s.installation}</CardTitle>
+          <CardDescription>{s.installationHint}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <ol className="space-y-3">
@@ -380,9 +433,12 @@ export default function ServerSetupPage() {
                   <span
                     className={cn(
                       "flex h-7 w-7 items-center justify-center rounded-full border text-xs",
-                      done && "border-green-500/40 bg-green-500/15 text-green-400",
+                      done &&
+                        "border-green-500/40 bg-green-500/15 text-green-400",
                       current && "border-primary bg-primary/10 text-primary",
-                      !done && !current && "border-border text-muted-foreground"
+                      !done &&
+                        !current &&
+                        "border-border text-muted-foreground"
                     )}
                   >
                     {done ? (
@@ -419,14 +475,14 @@ export default function ServerSetupPage() {
 
           {phase === "idle" && (
             <Button onClick={() => void runSetup()} className="w-full sm:w-auto">
-              Setup VPN
+              {s.setupVpn}
             </Button>
           )}
 
           {phase === "running" && (
             <div className="flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
-              Installing on the remote server...
+              {s.installing}
             </div>
           )}
 
@@ -435,7 +491,7 @@ export default function ServerSetupPage() {
               <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
                 <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                 <span className="whitespace-pre-wrap">
-                  {error || "Installation failed"}
+                  {error || s.statusFailed}
                 </span>
               </div>
               <DiagnosticsPanel output={diagnostics} />
@@ -445,7 +501,7 @@ export default function ServerSetupPage() {
                 disabled={!canStart}
               >
                 <RefreshCw className="mr-2 h-4 w-4" />
-                Retry setup
+                {s.retry}
               </Button>
             </div>
           )}
@@ -456,11 +512,9 @@ export default function ServerSetupPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-lg text-green-400">
-              VPN is ready
+              {s.readyTitle}
             </CardTitle>
-            <CardDescription>
-              Scan the QR code or copy the VLESS URL into your client app.
-            </CardDescription>
+            <CardDescription>{s.readyHint}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {qrDataUrl && (
@@ -468,7 +522,7 @@ export default function ServerSetupPage() {
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={qrDataUrl}
-                  alt="VLESS QR code"
+                  alt={s.qrAlt}
                   width={280}
                   height={280}
                   className="h-[280px] w-[280px]"
@@ -477,12 +531,13 @@ export default function ServerSetupPage() {
             )}
 
             <p className="text-sm text-muted-foreground">
-              Using SNI: {displaySniDomain(server.sni_domain)}. If connection
-              fails, try changing the SNI domain above and re-running setup.
+              {s.sniTip.replace("{sni}", displaySniDomain(server.sni_domain))}
             </p>
 
             <div className="space-y-2">
-              <p className="text-sm font-medium">VLESS config URL</p>
+              <p className="text-sm font-medium">
+                {isRelayServer ? s.relayUrl : s.directUrl}
+              </p>
               <div className="flex flex-col gap-2 sm:flex-row">
                 <code className="flex-1 overflow-x-auto rounded-md border border-border bg-muted px-3 py-2 text-xs break-all">
                   {vlessUrl}
@@ -493,7 +548,7 @@ export default function ServerSetupPage() {
                   onClick={() => void handleCopy()}
                 >
                   <Copy className="mr-2 h-4 w-4" />
-                  {copied ? "Copied" : "Copy"}
+                  {copied ? t.common.copied : t.common.copy}
                 </Button>
               </div>
             </div>
@@ -502,15 +557,85 @@ export default function ServerSetupPage() {
 
             <div className="flex flex-wrap gap-2">
               <Button asChild>
-                <Link href="/dashboard">Back to servers</Link>
+                <Link href="/dashboard">{s.backServers}</Link>
               </Button>
-              <Button variant="outline" onClick={() => void runSetup()}>
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Re-run setup
-              </Button>
+              {!isRelayServer && (
+                <Button variant="outline" onClick={() => void runSetup()}>
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  {s.reRun}
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {canAddRelay && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">{s.relayCardTitle}</CardTitle>
+            <CardDescription>{s.relayCardHint}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {relayUrl ? (
+              <>
+                {relayQrDataUrl && (
+                  <div className="flex justify-center rounded-lg border border-border bg-white p-4">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={relayQrDataUrl}
+                      alt={s.relayQrAlt}
+                      width={280}
+                      height={280}
+                      className="h-[280px] w-[280px]"
+                    />
+                  </div>
+                )}
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">{s.viaRelay}</p>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <code className="flex-1 overflow-x-auto rounded-md border border-border bg-muted px-3 py-2 text-xs break-all">
+                      {relayUrl}
+                    </code>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => void handleCopyRelay()}
+                    >
+                      <Copy className="mr-2 h-4 w-4" />
+                      {copiedRelay ? t.common.copied : t.common.copy}
+                    </Button>
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={() => setRelayDialogOpen(true)}
+                >
+                  {s.replaceRelay}
+                </Button>
+              </>
+            ) : (
+              <Button onClick={() => setRelayDialogOpen(true)}>
+                {s.addRelay}
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {isRuRelayEnabled() && (
+        <AddRuRelayDialog
+          open={relayDialogOpen}
+          exitServerId={server.id}
+          exitServerName={server.name}
+          onClose={() => setRelayDialogOpen(false)}
+          onSuccess={({ vlessConfigUrl, diagnostics: relayDiag }) => {
+            setRelayUrl(vlessConfigUrl);
+            void generateRelayQr(vlessConfigUrl);
+            if (relayDiag) setDiagnostics(relayDiag);
+            void loadServer();
+          }}
+        />
       )}
     </div>
   );

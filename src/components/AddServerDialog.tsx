@@ -22,6 +22,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n/provider";
 
 type AuthMode = "ssh_key" | "password";
 
@@ -36,6 +37,8 @@ export default function AddServerDialog({
   onClose,
   onCreated,
 }: AddServerDialogProps) {
+  const { t } = useI18n();
+  const a = t.addServer;
   const router = useRouter();
   const [name, setName] = useState("");
   const [ipAddress, setIpAddress] = useState("");
@@ -82,12 +85,10 @@ export default function AddServerDialog({
 
     try {
       if (authMode === "password" && !sshPassword.trim()) {
-        throw new Error("Root password is required in password mode");
+        throw new Error(a.errors.passwordRequired);
       }
       if (authMode === "ssh_key" && !platformKeyConfigured) {
-        throw new Error(
-          "Platform SSH key is not configured. Use password mode, or ask the operator to set NEXT_PUBLIC_WG_SSH_PUBLIC_KEY / WG_SSH_PRIVATE_KEY."
-        );
+        throw new Error(a.errors.platformKeyMissing);
       }
 
       const supabase = createClient();
@@ -95,7 +96,7 @@ export default function AddServerDialog({
         data: { session },
       } = await supabase.auth.getSession();
       const userId = session?.user?.id;
-      if (!userId) throw new Error("Not authenticated");
+      if (!userId) throw new Error(a.errors.notAuthenticated);
 
       const { data, error: insertError } = await supabase
         .from("servers")
@@ -115,7 +116,7 @@ export default function AddServerDialog({
         .single();
 
       if (insertError) throw insertError;
-      if (!data?.id) throw new Error("Server was created but ID is missing");
+      if (!data?.id) throw new Error(a.errors.missingId);
 
       const serverId = data.id as string;
       resetForm();
@@ -124,7 +125,7 @@ export default function AddServerDialog({
       router.push(`/dashboard/servers/${serverId}/setup`);
     } catch (err) {
       const message =
-        err instanceof Error ? err.message : "Failed to add server";
+        err instanceof Error ? err.message : a.failed;
       setError(message);
     } finally {
       setLoading(false);
@@ -135,23 +136,23 @@ export default function AddServerDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Add Server</DialogTitle>
+          <DialogTitle>{a.title}</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="server-name">Server Name</Label>
+            <Label htmlFor="server-name">{a.name}</Label>
             <Input
               id="server-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="My VPN Server"
+              placeholder={a.namePlaceholder}
               required
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="ip-address">IPv4 Address</Label>
+            <Label htmlFor="ip-address">{a.ipv4}</Label>
             <Input
               id="ip-address"
               value={ipAddress}
@@ -162,7 +163,7 @@ export default function AddServerDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="ssh-port">SSH Port</Label>
+            <Label htmlFor="ssh-port">{a.sshPort}</Label>
             <Input
               id="ssh-port"
               type="number"
@@ -173,7 +174,7 @@ export default function AddServerDialog({
           </div>
 
           <div className="space-y-2">
-            <Label>SSH authentication</Label>
+            <Label>{a.auth}</Label>
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
@@ -185,9 +186,9 @@ export default function AddServerDialog({
                     : "border-border hover:bg-muted/40"
                 )}
               >
-                <span className="font-medium">SSH key</span>
+                <span className="font-medium">{a.sshKey}</span>
                 <span className="mt-0.5 block text-xs text-muted-foreground">
-                  Recommended — safer
+                  {a.sshKeyHint}
                 </span>
               </button>
               <button
@@ -200,9 +201,9 @@ export default function AddServerDialog({
                     : "border-border hover:bg-muted/40"
                 )}
               >
-                <span className="font-medium">Root password</span>
+                <span className="font-medium">{a.password}</span>
                 <span className="mt-0.5 block text-xs text-muted-foreground">
-                  Alternative
+                  {a.passwordAlt}
                 </span>
               </button>
             </div>
@@ -210,36 +211,26 @@ export default function AddServerDialog({
 
           {authMode === "ssh_key" ? (
             <div className="rounded-md border border-border bg-muted/40 p-3 text-xs text-muted-foreground space-y-2">
-              <p>
-                Safer: we do <strong className="text-foreground">not</strong>{" "}
-                store your root password. Add the WG Manager public key in
-                Timeweb when creating the VPS, then connect with IP only.
-              </p>
-              <p>
-                Setup uses the platform private key on the server (
-                <code className="text-[10px]">WG_SSH_PRIVATE_KEY</code>).
-              </p>
+              <p>{a.helpNoPassword}</p>
+              <p>{a.helpPrivateKey}</p>
             </div>
           ) : (
             <div className="space-y-2">
-              <Label htmlFor="ssh-password">Root Password</Label>
+              <Label htmlFor="ssh-password">{a.rootPassword}</Label>
               <Input
                 id="ssh-password"
                 type="password"
                 value={sshPassword}
                 onChange={(e) => setSshPassword(e.target.value)}
-                placeholder="Enter root password"
+                placeholder={a.rootPasswordPlaceholder}
                 required={authMode === "password"}
               />
-              <p className="text-xs text-amber-400/90">
-                Less safe: the password is stored in the database so setup can
-                SSH. Prefer SSH key when possible.
-              </p>
+              <p className="text-xs text-amber-400/90">{a.helpPasswordRisk}</p>
             </div>
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="vless-port">VLESS Port</Label>
+            <Label htmlFor="vless-port">{a.vlessPort}</Label>
             <Input
               id="vless-port"
               type="number"
@@ -248,10 +239,7 @@ export default function AddServerDialog({
               placeholder={String(DEFAULT_VLESS_PORT)}
               required
             />
-            <p className="text-xs text-muted-foreground">
-              Default 443 — best for Reality in RU; installer probes SNI
-              reachability.
-            </p>
+            <p className="text-xs text-muted-foreground">{a.vlessPortTip}</p>
           </div>
 
           <SniDomainField
@@ -270,10 +258,10 @@ export default function AddServerDialog({
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
+              {t.common.cancel}
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? "Saving..." : "Add Server"}
+              {loading ? a.saving : a.submit}
             </Button>
           </DialogFooter>
         </form>

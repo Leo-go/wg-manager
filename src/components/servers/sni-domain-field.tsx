@@ -14,6 +14,7 @@ import {
   SNI_PRESET_OPTIONS,
   type SniPresetValue,
 } from "@/lib/constants/sni";
+import { useI18n } from "@/lib/i18n/provider";
 
 interface SniDomainFieldProps {
   preset: SniPresetValue | string;
@@ -30,9 +31,20 @@ export function SniDomainField({
   onCustomValueChange,
   disabled = false,
 }: SniDomainFieldProps) {
+  const { t } = useI18n();
+  const sn = t.sni;
+
+  const optionLabel = (option: (typeof SNI_PRESET_OPTIONS)[number]): string => {
+    if (option.id === "custom") return sn.custom;
+    if (option.id === "cloudflare") {
+      return `${option.value} (${sn.recommended})`;
+    }
+    return option.value;
+  };
+
   return (
     <div className="space-y-2">
-      <Label htmlFor="sni-domain">SNI Domain (Mask)</Label>
+      <Label htmlFor="sni-domain">{sn.label}</Label>
       <Select
         value={preset}
         onValueChange={onPresetChange}
@@ -44,7 +56,7 @@ export function SniDomainField({
         <SelectContent>
           {SNI_PRESET_OPTIONS.map((option) => (
             <SelectItem key={option.value} value={option.value}>
-              {option.label}
+              {optionLabel(option)}
             </SelectItem>
           ))}
         </SelectContent>
@@ -58,11 +70,7 @@ export function SniDomainField({
           required
         />
       )}
-      <p className="text-xs text-muted-foreground">
-        Reality uses this domain as camouflage. Installer verifies the dest is
-        reachable from your VPS (falls back if needed).
-        networks.
-      </p>
+      <p className="text-xs text-muted-foreground">{sn.help}</p>
     </div>
   );
 }

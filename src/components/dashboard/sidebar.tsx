@@ -6,17 +6,23 @@ import { LogOut, Server } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
-
-const navItems = [{ href: "/dashboard", label: "Servers", icon: Server }];
+import { LanguageSwitcher } from "@/components/i18n/language-switcher";
+import { useI18n } from "@/lib/i18n/provider";
 
 export function Sidebar({ userEmail }: { userEmail: string | null }) {
   const pathname = usePathname();
   const router = useRouter();
+  const { t } = useI18n();
+
+  const navItems = [
+    { href: "/dashboard", label: t.nav.servers, icon: Server },
+  ];
 
   return (
     <aside className="flex h-screen w-64 flex-col border-r border-border bg-card">
-      <div className="flex h-16 items-center border-b border-border px-6">
-        <span className="text-lg font-semibold">WG Manager</span>
+      <div className="flex h-16 items-center justify-between gap-2 border-b border-border px-6">
+        <span className="text-lg font-semibold">{t.common.brand}</span>
+        <LanguageSwitcher compact />
       </div>
       <nav className="flex flex-1 flex-col gap-1 p-4">
         {navItems.map(({ href, label, icon: Icon }) => (
@@ -54,7 +60,7 @@ export function Sidebar({ userEmail }: { userEmail: string | null }) {
           }}
         >
           <LogOut className="h-4 w-4" />
-          Log out
+          {t.nav.logOut}
         </Button>
       </div>
     </aside>

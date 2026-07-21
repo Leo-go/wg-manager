@@ -11,6 +11,7 @@ import { BuyVpsDialog } from "@/components/servers/buy-vps-dialog";
 import { EditServerDialog } from "@/components/servers/edit-server-dialog";
 import { GetStartedPartnerDialog } from "@/components/servers/get-started-partner-dialog";
 import { Button } from "@/components/ui/button";
+import { isRuRelayEnabled } from "@/lib/constants/features";
 import { isTimewebApiBuyEnabled } from "@/lib/constants/partner";
 import {
   Table,
@@ -21,18 +22,23 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n/provider";
+import type { Dictionary } from "@/lib/i18n/types";
 
-function installationLabel(status: InstallationStatus | null | undefined) {
+function installationLabel(
+  status: InstallationStatus | null | undefined,
+  d: Dictionary["dashboard"]
+) {
   switch (status) {
     case "completed":
-      return "Ready";
+      return d.ready;
     case "installing":
-      return "Installing";
+      return d.installing;
     case "error":
-      return "Failed";
+      return d.failed;
     case "pending":
     default:
-      return "Pending";
+      return d.pending;
   }
 }
 
@@ -49,16 +55,19 @@ function installationClass(status: InstallationStatus | null | undefined) {
   }
 }
 
-function actionLabel(status: InstallationStatus | null | undefined) {
+function actionLabel(
+  status: InstallationStatus | null | undefined,
+  d: Dictionary["dashboard"]
+) {
   switch (status) {
     case "completed":
-      return "View config";
+      return d.viewConfig;
     case "error":
-      return "Retry setup";
+      return d.retrySetup;
     case "installing":
-      return "View progress";
+      return d.viewProgress;
     default:
-      return "Setup VPN";
+      return d.setupVpn;
   }
 }
 
@@ -67,6 +76,8 @@ export function DashboardPageClient({
 }: {
   initialServers: Server[];
 }) {
+  const { t } = useI18n();
+  const d = t.dashboard;
   const [servers, setServers] = useState<Server[]>(initialServers);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [partnerOpen, setPartnerOpen] = useState(false);
@@ -80,30 +91,36 @@ export function DashboardPageClient({
     setServers(initialServers);
   }, [initialServers]);
 
-  const handleDelete = useCallback(async (server: Server) => {
-    const ok = window.confirm(
-      `Delete server "${server.name}" (${server.ip_address})?\n\nThis removes it from WG Manager only — Xray on the VPS is not uninstalled.`
-    );
-    if (!ok) return;
+  const handleDelete = useCallback(
+    async (server: Server) => {
+      const ok = window.confirm(
+        d.deleteConfirm
+          .replace("{name}", server.name)
+          .replace("{ip}", server.ip_address)
+      );
+      if (!ok) return;
 
-    setDeletingId(server.id);
-    try {
-      const supabase = createClient();
-      const { error } = await supabase
-        .from("servers")
-        .delete()
-        .eq("id", server.id);
+      setDeletingId(server.id);
+      try {
+        const supabase = createClient();
+        const { error } = await supabase
+          .from("servers")
+          .delete()
+          .eq("id", server.id);
 
-      if (error) throw error;
+        if (error) throw error;
 
-      setServers((prev) => prev.filter((s) => s.id !== server.id));
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Could not delete server";
-      window.alert(`Could not delete server: ${message}`);
-    } finally {
-      setDeletingId(null);
-    }
-  }, []);
+        setServers((prev) => prev.filter((s) => s.id !== server.id));
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : d.deleteFailed;
+        window.alert(`${d.deleteFailed}: ${message}`);
+      } finally {
+        setDeletingId(null);
+      }
+    },
+    [d.deleteConfirm, d.deleteFailed]
+  );
 
   const handleCreated = useCallback(() => {
     // After creation we navigate away, but in case user comes back, refresh the list.
@@ -113,17 +130,17 @@ export function DashboardPageClient({
   return (
     <div className="p-8">
       <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-3xl font-bold tracking-tight">My Servers</h1>
+        <h1 className="text-3xl font-bold tracking-tight">{d.title}</h1>
         <div className="flex flex-wrap gap-2">
           <Button variant="default" onClick={() => setPartnerOpen(true)}>
-            Get VPS via Timeweb
+            {d.getVps}
           </Button>
           <Button variant="outline" onClick={() => setDialogOpen(true)}>
-            Add Server
+            {d.addServer}
           </Button>
           {showApiBuy && (
             <Button variant="ghost" onClick={() => setBuyVpsOpen(true)}>
-              Demo: API buy
+              {d.demoBuy}
             </Button>
           )}
         </div>
@@ -134,19 +151,15 @@ export function DashboardPageClient({
           <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
             <ServerIcon className="h-8 w-8 text-muted-foreground" />
           </div>
-          <p className="text-center text-muted-foreground">
-            No servers yet. Add your first VPS to get started.
-          </p>
+          <p className="text-center text-muted-foreground">{d.empty}</p>
           <div className="mt-6 flex flex-wrap justify-center gap-2">
-            <Button onClick={() => setPartnerOpen(true)}>
-              Get VPS via Timeweb
-            </Button>
+            <Button onClick={() => setPartnerOpen(true)}>{d.getVps}</Button>
             <Button variant="outline" onClick={() => setDialogOpen(true)}>
-              Add Server
+              {d.addServer}
             </Button>
             {showApiBuy && (
               <Button variant="ghost" onClick={() => setBuyVpsOpen(true)}>
-                Demo: API buy
+                {d.demoBuy}
               </Button>
             )}
           </div>
@@ -156,17 +169,33 @@ export function DashboardPageClient({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>IP</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Setup</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>{d.name}</TableHead>
+                <TableHead>{d.ip}</TableHead>
+                <TableHead>{d.status}</TableHead>
+                <TableHead>{d.setup}</TableHead>
+                <TableHead className="text-right">{d.actions}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {servers.map((server) => (
                 <TableRow key={server.id}>
-                  <TableCell className="font-medium">{server.name}</TableCell>
+                  <TableCell className="font-medium">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span>{server.name}</span>
+                      {isRuRelayEnabled() && server.role === "relay" && (
+                        <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-sky-400">
+                          {d.badgeRelay}
+                        </span>
+                      )}
+                      {isRuRelayEnabled() &&
+                        server.role !== "relay" &&
+                        server.relay_vless_config_url && (
+                          <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-emerald-400">
+                            {d.badgePlusRelay}
+                          </span>
+                        )}
+                    </div>
+                  </TableCell>
                   <TableCell>
                     {server.ip_address}:{server.ssh_port}
                   </TableCell>
@@ -191,14 +220,14 @@ export function DashboardPageClient({
                         installationClass(server.installation_status)
                       )}
                     >
-                      {installationLabel(server.installation_status)}
+                      {installationLabel(server.installation_status, d)}
                     </span>
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
                       <Button asChild variant="ghost" size="sm">
                         <Link href={`/dashboard/servers/${server.id}/setup`}>
-                          {actionLabel(server.installation_status)}
+                          {actionLabel(server.installation_status, d)}
                         </Link>
                       </Button>
                       <Button
@@ -257,4 +286,3 @@ export function DashboardPageClient({
     </div>
   );
 }
-

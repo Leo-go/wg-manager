@@ -136,6 +136,7 @@ If `TIMEWEB_CLOUD_API_TOKEN` is empty, provision simulates a 3s delay and return
 | `TIMEWEB_OS_ID` | recommended | pin Ubuntu os id (tutorials often use `99`) |
 
 Optional DB columns: run `scripts/timeweb-columns.sql` in Supabase.
+For v2 RU Relay columns: run `scripts/relay-columns.sql` in Supabase.
 
 ### Partner / revenue note
 
@@ -203,6 +204,7 @@ Useful follow-ups already in the repo:
 # scripts/ru-defaults.sql
 # scripts/sni-default.sql
 # scripts/timeweb-columns.sql   # provider + provider_server_id
+# scripts/relay-columns.sql     # role, exit_server_id, relay_* (v2 Layer 1)
 ```
 
 Enable **Email** auth in Supabase (**Authentication → Providers**).
@@ -233,6 +235,8 @@ src/
   lib/                  # Supabase clients, constants, types
 scripts/
   install-vless-reality.sh   # Production installer used by the API
+  add-exit-relay-inbound.sh  # Adds xHTTP Reality inbound on exit (v2)
+  install-ru-relay.sh        # RU hop → exit (v2 Layer 1)
   diagnose-fix-reality.sh  # Offline recovery / dest probing
   *.sql                 # Supabase helpers
 ```

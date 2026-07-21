@@ -13,6 +13,9 @@ export type InstallationStatus =
 
 export type ServerStatus = "active" | "inactive" | "error";
 
+/** exit = abroad node; relay = RU hop (Layer 1) */
+export type ServerRole = "exit" | "relay";
+
 export type Server = {
   id: string;
   user_id: string;
@@ -36,6 +39,18 @@ export type Server = {
   /** manual | timeweb | … (optional column — see scripts/timeweb-columns.sql) */
   provider?: string | null;
   provider_server_id?: string | null;
+  /** exit (default) | relay — see scripts/relay-columns.sql */
+  role?: ServerRole | string | null;
+  /** For role=relay: parent exit server */
+  exit_server_id?: string | null;
+  /** On exit: client VLESS URL that goes via RU relay */
+  relay_vless_config_url?: string | null;
+  relay_listen_port?: number | null;
+  relay_uuid?: string | null;
+  relay_public_key?: string | null;
+  relay_short_id?: string | null;
+  relay_path?: string | null;
+  relay_status?: string | null;
   status: ServerStatus;
   created_at: string;
   updated_at: string;
