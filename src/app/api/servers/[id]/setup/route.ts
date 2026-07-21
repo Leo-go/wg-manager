@@ -118,14 +118,15 @@ function mapSshError(error: unknown): Error {
 
 export async function POST(
   _request: NextRequest,
-  context: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   let serverId = "";
   let fullOutput = "";
   const supabase = getSupabase();
 
   try {
-    const idResult = serverIdSchema.safeParse(context.params.id);
+    const { id } = await params;
+    const idResult = serverIdSchema.safeParse(id);
     if (!idResult.success) {
       const message =
         idResult.error.issues[0]?.message ?? "Invalid server id";
