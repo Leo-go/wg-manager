@@ -9,5 +9,7 @@ export const config = {
   matcher: [
     "/dashboard/:path*",
     "/login",
+    // Keep auth cookies fresh for setup API (uses user session, not service role)
+    "/api/servers/:path*",
   ],
 };

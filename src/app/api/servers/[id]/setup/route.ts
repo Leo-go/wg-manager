@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { Client as SSHClient } from "ssh2";
 import { z } from "zod";
 import * as fs from "fs";
 import * as path from "path";
+import { createClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -25,17 +25,6 @@ const serverCredentialsSchema = z.object({
   sni_domain: z.string().nullable().optional(),
   vless_port: z.number().int().min(1).max(65535).nullable().optional(),
 });
-
-function getSupabase() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) {
-    throw new Error(
-      "Server misconfigured: NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is missing"
-    );
-  }
-  return createServiceClient(url, key);
-}
 
 function buildFullOutput(stdout: string, stderr: string): string {
   return [stdout.trim(), stderr.trim()].filter(Boolean).join("\n");
@@ -122,9 +111,22 @@ export async function POST(
 ) {
   let serverId = "";
   let fullOutput = "";
-  const supabase = getSupabase();
+  const supabase = await createClient();
 
   try {
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      console.error("[setup] Unauthorized:", authError?.message);
+      return NextResponse.json(
+        { error: "Unauthorized — sign in again and retry setup" },
+        { status: 401 }
+      );
+    }
+
     const { id } = await params;
     const idResult = serverIdSchema.safeParse(id);
     if (!idResult.success) {
@@ -139,14 +141,26 @@ export async function POST(
       .from("servers")
       .select("*")
       .eq("id", serverId)
-      .single();
+      .eq("user_id", user.id)
+      .maybeSingle();
 
-    if (fetchError || !serverRow) {
-      console.error("[setup] Server not found:", serverId, fetchError?.message);
+    if (fetchError) {
+      console.error("[setup] Server fetch error:", serverId, fetchError.message);
       return NextResponse.json(
         {
-          error: "Server not found in database",
-          details: fetchError?.message ?? undefined,
+          error: "Failed to load server from database",
+          details: fetchError.message,
+        },
+        { status: 500 }
+      );
+    }
+
+    if (!serverRow) {
+      console.error("[setup] Server not found for user:", serverId, user.id);
+      return NextResponse.json(
+        {
+          error:
+            "Server not found (or you do not own it). Refresh the dashboard and try again.",
         },
         { status: 404 }
       );
