@@ -24,7 +24,7 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 if ! command -v xray >/dev/null 2>&1; then
-  echo "ERROR: xray not installed — run main WG Manager setup first" >&2
+  echo "ERROR: xray not installed — run main VLESS Manager setup first" >&2
   exit 1
 fi
 

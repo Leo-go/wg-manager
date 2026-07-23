@@ -1,5 +1,10 @@
 /**
- * Resolve SSH auth for setup: platform key (preferred) → row private key → password.
+ * Resolve SSH auth for setup.
+ * Order: per-server private key → per-server password → platform key.
+ *
+ * Password is only stored when the user chose password auth for that server,
+ * so it must win over the global platform key (otherwise RU relays / foreign
+ * VPS without our pubkey fail with "invalid credentials").
  */
 
 export type SshAuthMode = "platform_key" | "password";
@@ -40,6 +45,11 @@ export function resolveSshAuth(input: {
     };
   }
 
+  const password = input.sshPassword?.trim();
+  if (password) {
+    return { type: "password", password };
+  }
+
   const platformKey = getPlatformSshPrivateKey();
   if (platformKey) {
     return {
@@ -47,11 +57,6 @@ export function resolveSshAuth(input: {
       privateKey: platformKey,
       passphrase: getPlatformSshPassphrase(),
     };
-  }
-
-  const password = input.sshPassword?.trim();
-  if (password) {
-    return { type: "password", password };
   }
 
   throw new Error(

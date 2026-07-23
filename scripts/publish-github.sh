@@ -38,7 +38,7 @@ ROOT="$(pwd)"
 echo "Project root: $ROOT"
 
 if [[ ! -f "$ROOT/package.json" || ! -f "$ROOT/scripts/install-vless-reality.sh" ]]; then
-  echo "ERROR: Refusing to run outside WG Manager project (found wrong root: $ROOT)"
+  echo "ERROR: Refusing to run outside VLESS Manager project (found wrong root: $ROOT)"
   exit 1
 fi
 

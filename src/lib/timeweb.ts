@@ -448,7 +448,7 @@ export async function provisionServer(
     bandwidth: 200,
     os_id: osId,
     preset_id: presetId,
-    comment: "Provisioned by WG Manager",
+    comment: "Provisioned by VLESS Manager",
     cloud_init: buildCloudInit(password),
   };
 

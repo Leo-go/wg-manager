@@ -10,7 +10,8 @@ const nextConfig: NextConfig = {
     "/api/servers/[id]/relay/prepare": [
       "./scripts/add-exit-relay-inbound.sh",
     ],
-    "/api/servers/[id]/relay/setup": [
+    "/api/servers/[id]/relay/setup": [],
+    "/api/servers/[id]/relay/install": [
       "./scripts/add-exit-relay-inbound.sh",
       "./scripts/install-ru-relay.sh",
     ],

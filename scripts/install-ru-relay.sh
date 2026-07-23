@@ -31,7 +31,7 @@ if [ "$EUID" -ne 0 ]; then
   exit 1
 fi
 
-echo "=== WG Manager RU Relay Installer ==="
+echo "=== VLESS Manager RU Relay Installer ==="
 
 systemctl stop xray 2>/dev/null || true
 pkill -f xray 2>/dev/null || true

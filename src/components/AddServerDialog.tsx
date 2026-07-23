@@ -43,6 +43,7 @@ export default function AddServerDialog({
   const [name, setName] = useState("");
   const [ipAddress, setIpAddress] = useState("");
   const [sshPort, setSshPort] = useState("22");
+  const [sshUsername, setSshUsername] = useState("root");
   const [authMode, setAuthMode] = useState<AuthMode>("ssh_key");
   const [sshPassword, setSshPassword] = useState("");
   const [vlessPort, setVlessPort] = useState(String(DEFAULT_VLESS_PORT));
@@ -59,6 +60,7 @@ export default function AddServerDialog({
     setName("");
     setIpAddress("");
     setSshPort("22");
+    setSshUsername("root");
     setAuthMode("ssh_key");
     setSshPassword("");
     setVlessPort(String(DEFAULT_VLESS_PORT));
@@ -105,7 +107,8 @@ export default function AddServerDialog({
           name,
           ip_address: ipAddress,
           ssh_port: Number.parseInt(sshPort, 10) || 22,
-          // Key mode: do not store root password. Password mode: store as fallback.
+          ssh_username: sshUsername.trim() || "root",
+          // Key mode: do not store password. Password mode: store as fallback.
           ssh_password: authMode === "password" ? sshPassword : null,
           sni_domain: sniDomain,
           vless_port: parsedVlessPort,
@@ -171,6 +174,18 @@ export default function AddServerDialog({
               onChange={(e) => setSshPort(e.target.value)}
               placeholder="22"
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="ssh-username">{a.sshUsername}</Label>
+            <Input
+              id="ssh-username"
+              value={sshUsername}
+              onChange={(e) => setSshUsername(e.target.value)}
+              placeholder="root"
+              required
+            />
+            <p className="text-xs text-muted-foreground">{a.sshUsernameHint}</p>
           </div>
 
           <div className="space-y-2">

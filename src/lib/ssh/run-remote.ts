@@ -70,6 +70,10 @@ export function extractUserFacingError(
     return "SSH connection failed: invalid credentials";
   }
 
+  if (/sudo:\s*(a password is required|a terminal is required|sorry)/i.test(output)) {
+    return "SSH user is not root and needs passwordless sudo (sudo -n). Use root, or configure NOPASSWD for that user.";
+  }
+
   if (/Timed out while waiting for handshake/i.test(output)) {
     return "SSH connection failed: connection timed out";
   }
@@ -89,8 +93,20 @@ function shellSingleQuote(value: string): string {
   return `'${value.replace(/'/g, `'\\''`)}'`;
 }
 
+export function normalizeSshUsername(raw?: string | null): string {
+  const trimmed = raw?.trim();
+  if (!trimmed) return "root";
+  if (!/^[a-zA-Z0-9._-]+$/.test(trimmed)) {
+    throw new Error(
+      "Invalid SSH username (allowed: letters, digits, . _ -)"
+    );
+  }
+  return trimmed;
+}
+
 /**
  * Upload a bash script via stdin and run with positional args.
+ * Non-root users run via `sudo -n` (needs passwordless sudo on the VPS).
  */
 export async function runRemoteBashScript(opts: {
   host: string;
@@ -98,13 +114,19 @@ export async function runRemoteBashScript(opts: {
   auth: SshConnectAuth;
   scriptContent: string;
   args?: string[];
+  username?: string | null;
   readyTimeoutMs?: number;
 }): Promise<RemoteExecResult> {
   const ssh = new SSHClient();
+  const username = normalizeSshUsername(opts.username);
   const args = opts.args ?? [];
   const argSuffix = args.map(shellSingleQuote).join(" ");
   const escapedScript = opts.scriptContent.replace(/'/g, `'\\''`);
-  const command = `export DEBIAN_FRONTEND=noninteractive TERM=xterm CURL_HOME=/tmp; echo '${escapedScript}' | bash --noprofile --norc -s -- ${argSuffix}`;
+  const bashRunner =
+    username === "root"
+      ? "bash --noprofile --norc -s --"
+      : "sudo -n bash --noprofile --norc -s --";
+  const command = `export DEBIAN_FRONTEND=noninteractive TERM=xterm CURL_HOME=/tmp; echo '${escapedScript}' | ${bashRunner} ${argSuffix}`;
 
   try {
     await new Promise<void>((resolve, reject) => {
@@ -114,7 +136,7 @@ export async function runRemoteBashScript(opts: {
         .connect({
           host: opts.host,
           port: opts.port,
-          username: "root",
+          username,
           readyTimeout: opts.readyTimeoutMs ?? 30_000,
           ...(opts.auth.type === "privateKey"
             ? {

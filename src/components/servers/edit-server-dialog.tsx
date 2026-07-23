@@ -33,6 +33,7 @@ export function EditServerDialog({
   const [name, setName] = useState("");
   const [ipAddress, setIpAddress] = useState("");
   const [sshPort, setSshPort] = useState("22");
+  const [sshUsername, setSshUsername] = useState("root");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -41,6 +42,7 @@ export function EditServerDialog({
     setName(server.name);
     setIpAddress(server.ip_address);
     setSshPort(String(server.ssh_port || 22));
+    setSshUsername(server.ssh_username || "root");
     setError("");
   }, [server, open]);
 
@@ -58,6 +60,7 @@ export function EditServerDialog({
     const trimmedName = name.trim();
     const trimmedIp = ipAddress.trim();
     const port = Number.parseInt(sshPort, 10) || 22;
+    const username = sshUsername.trim() || "root";
 
     if (!trimmedName) {
       setError(e.errors.nameRequired);
@@ -66,6 +69,11 @@ export function EditServerDialog({
     }
     if (!trimmedIp) {
       setError(e.errors.ipRequired);
+      setLoading(false);
+      return;
+    }
+    if (!/^[a-zA-Z0-9._-]+$/.test(username)) {
+      setError(e.errors.usernameInvalid);
       setLoading(false);
       return;
     }
@@ -78,6 +86,7 @@ export function EditServerDialog({
           name: trimmedName,
           ip_address: trimmedIp,
           ssh_port: port,
+          ssh_username: username,
         })
         .eq("id", server.id)
         .select("*")
@@ -130,6 +139,17 @@ export function EditServerDialog({
               value={sshPort}
               onChange={(ev) => setSshPort(ev.target.value)}
             />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="edit-ssh-user">{e.sshUsername}</Label>
+            <Input
+              id="edit-ssh-user"
+              value={sshUsername}
+              onChange={(ev) => setSshUsername(ev.target.value)}
+              placeholder="root"
+              required
+            />
+            <p className="text-xs text-muted-foreground">{e.sshUsernameHint}</p>
           </div>
           {error && (
             <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">

@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Server as ServerIcon, Trash2 } from "lucide-react";
+import { CornerDownRight, Pencil, Server as ServerIcon, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { InstallationStatus, Server } from "@/lib/supabase/types";
+import { buildServerTree } from "@/lib/servers/build-server-tree";
 import AddServerDialog from "@/components/AddServerDialog";
 import { BuyVpsDialog } from "@/components/servers/buy-vps-dialog";
 import { EditServerDialog } from "@/components/servers/edit-server-dialog";
@@ -71,6 +72,110 @@ function actionLabel(
   }
 }
 
+function ServerTableRow({
+  server,
+  depth,
+  parentName,
+  d,
+  deletingId,
+  onEdit,
+  onDelete,
+}: {
+  server: Server;
+  depth: number;
+  parentName?: string;
+  d: Dictionary["dashboard"];
+  deletingId: string | null;
+  onEdit: (server: Server) => void;
+  onDelete: (server: Server) => void;
+}) {
+  const isRelay = server.role === "relay";
+
+  return (
+    <TableRow className={depth > 0 ? "bg-muted/20" : undefined}>
+      <TableCell className="font-medium">
+        <div
+          className="flex flex-wrap items-center gap-2"
+          style={{ paddingLeft: depth > 0 ? `${depth * 1.25}rem` : 0 }}
+        >
+          {depth > 0 && (
+            <CornerDownRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+          )}
+          <div className="min-w-0">
+            <span>{server.name}</span>
+            {isRelay && parentName && (
+              <p className="text-xs font-normal text-muted-foreground">
+                {d.relayChildOf.replace("{name}", parentName)}
+              </p>
+            )}
+          </div>
+          {isRuRelayEnabled() && isRelay && (
+            <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-sky-400">
+              {d.badgeRelay}
+            </span>
+          )}
+        </div>
+      </TableCell>
+      <TableCell>
+        {server.ip_address}:{server.ssh_port}
+      </TableCell>
+      <TableCell>
+        <span
+          className={cn(
+            "rounded-full px-2 py-1 text-xs",
+            server.status === "active"
+              ? "bg-green-500/15 text-green-400"
+              : server.status === "error"
+                ? "bg-red-500/15 text-red-400"
+                : "bg-muted text-muted-foreground"
+          )}
+        >
+          {server.status}
+        </span>
+      </TableCell>
+      <TableCell>
+        <span
+          className={cn(
+            "rounded-full px-2 py-1 text-xs",
+            installationClass(server.installation_status)
+          )}
+        >
+          {installationLabel(server.installation_status, d)}
+        </span>
+      </TableCell>
+      <TableCell className="text-right">
+        <div className="flex items-center justify-end gap-1">
+          <Button asChild variant="ghost" size="sm">
+            <Link href={`/dashboard/servers/${server.id}/setup`}>
+              {actionLabel(server.installation_status, d)}
+            </Link>
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => onEdit(server)}
+            aria-label={`Edit ${server.name}`}
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="text-destructive hover:text-destructive"
+            disabled={deletingId === server.id}
+            onClick={() => void onDelete(server)}
+            aria-label={`Delete ${server.name}`}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+}
+
 export function DashboardPageClient({
   initialServers,
 }: {
@@ -86,6 +191,8 @@ export function DashboardPageClient({
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const router = useRouter();
   const showApiBuy = isTimewebApiBuyEnabled();
+
+  const serverTree = useMemo(() => buildServerTree(servers), [servers]);
 
   useEffect(() => {
     setServers(initialServers);
@@ -123,7 +230,6 @@ export function DashboardPageClient({
   );
 
   const handleCreated = useCallback(() => {
-    // After creation we navigate away, but in case user comes back, refresh the list.
     router.refresh();
   }, [router]);
 
@@ -177,82 +283,29 @@ export function DashboardPageClient({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {servers.map((server) => (
-                <TableRow key={server.id}>
-                  <TableCell className="font-medium">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span>{server.name}</span>
-                      {isRuRelayEnabled() && server.role === "relay" && (
-                        <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-sky-400">
-                          {d.badgeRelay}
-                        </span>
-                      )}
-                      {isRuRelayEnabled() &&
-                        server.role !== "relay" &&
-                        server.relay_vless_config_url && (
-                          <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-emerald-400">
-                            {d.badgePlusRelay}
-                          </span>
-                        )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {server.ip_address}:{server.ssh_port}
-                  </TableCell>
-                  <TableCell>
-                    <span
-                      className={cn(
-                        "rounded-full px-2 py-1 text-xs",
-                        server.status === "active"
-                          ? "bg-green-500/15 text-green-400"
-                          : server.status === "error"
-                            ? "bg-red-500/15 text-red-400"
-                            : "bg-muted text-muted-foreground"
-                      )}
-                    >
-                      {server.status}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <span
-                      className={cn(
-                        "rounded-full px-2 py-1 text-xs",
-                        installationClass(server.installation_status)
-                      )}
-                    >
-                      {installationLabel(server.installation_status, d)}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <Button asChild variant="ghost" size="sm">
-                        <Link href={`/dashboard/servers/${server.id}/setup`}>
-                          {actionLabel(server.installation_status, d)}
-                        </Link>
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setEditingServer(server)}
-                        aria-label={`Edit ${server.name}`}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="text-destructive hover:text-destructive"
-                        disabled={deletingId === server.id}
-                        onClick={() => void handleDelete(server)}
-                        aria-label={`Delete ${server.name}`}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
+              {serverTree.map(({ server, children }) => (
+                <Fragment key={server.id}>
+                  <ServerTableRow
+                    server={server}
+                    depth={0}
+                    d={d}
+                    deletingId={deletingId}
+                    onEdit={setEditingServer}
+                    onDelete={handleDelete}
+                  />
+                  {children.map((child) => (
+                    <ServerTableRow
+                      key={child.id}
+                      server={child}
+                      depth={1}
+                      parentName={server.name}
+                      d={d}
+                      deletingId={deletingId}
+                      onEdit={setEditingServer}
+                      onDelete={handleDelete}
+                    />
+                  ))}
+                </Fragment>
               ))}
             </TableBody>
           </Table>

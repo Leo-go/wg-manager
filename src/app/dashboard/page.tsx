@@ -6,9 +6,7 @@ export default async function DashboardPage() {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("servers")
-    .select(
-      "id, user_id, name, ip_address, ssh_port, status, installation_status, created_at, updated_at"
-    )
+    .select("*")
     .order("created_at", { ascending: false });
 
   if (error) {

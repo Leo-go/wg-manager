@@ -2,12 +2,12 @@ import type { Dictionary } from "@/lib/i18n/types";
 
 export const en: Dictionary = {
   meta: {
-    title: "WG Manager",
+    title: "VLESS Manager",
     description:
       "Install VLESS Reality on your VPS: SSH setup, QR, and a ready client link",
   },
   common: {
-    brand: "WG Manager",
+    brand: "VLESS Manager",
     loading: "Loading...",
     cancel: "Cancel",
     close: "Close",
@@ -20,14 +20,14 @@ export const en: Dictionary = {
     english: "English",
   },
   landing: {
-    headline: "WG Manager",
+    headline: "VLESS Manager",
     tagline:
       "You buy the VPS — we install VLESS Reality over SSH and give you a ready QR / client link.",
     cta: "Get started",
     signIn: "Sign in",
     whatTitle: "What we do",
     whatLead:
-      "This is not a hosted “VPN subscription”. The server is yours. WG Manager is a control panel that SSHs in and configures Xray (VLESS + Reality) on your machine.",
+      "This is not a hosted “VPN subscription”. The server is yours. VLESS Manager is a control panel that SSHs in and configures Xray (VLESS + Reality) on your machine.",
     whatItems: [
       {
         title: "Your VPS, your keys",
@@ -49,7 +49,7 @@ export const en: Dictionary = {
         body: "We recommend Timeweb Cloud via the partner link. Add our SSH key at create time — no root password needed in the panel.",
       },
       {
-        title: "Add the server in WG Manager",
+        title: "Add the server in VLESS Manager",
         body: "Enter IPv4 and SSH port. Prefer SSH key auth; password is a fallback.",
       },
       {
@@ -80,9 +80,13 @@ export const en: Dictionary = {
     ],
     osTip:
       "In Timeweb: Ubuntu 24.04 or 22.04, abroad region (e.g. NL), IPv4 required.",
-    relayTitle: "Direct access",
+    relayTitle: "What is RU Relay",
     relayBody:
-      "After Setup VPN you get a QR and vless:// for a direct connection to your abroad VPS.",
+      "Usually clients connect directly to your abroad exit via VLESS Reality. If direct connectivity in RU fails (or is unstable), add RU Relay on the setup page of your abroad exit server: traffic first lands on a VPS in RU and then exits abroad through your exit. After install, you’ll get a second VLESS URL/QR — “via Russia”.",
+    whitelistTitle: "Context: white IP addresses",
+    whitelistBody:
+      "Sometimes apps or networks check the apparent source IP against a whitelist. If direct exits don’t pass those checks, changing the exit/route may help. The link below is a reference repository with example white IPs. We don’t integrate with it — we only provide context.",
+    whitelistLinkLabel: "white IP whitelist (GitHub)",
     disclaimer:
       "Use within applicable law. Hosting ads: Timeweb partner link — you pay the provider directly.",
   },
@@ -90,7 +94,7 @@ export const en: Dictionary = {
     signIn: "Sign In",
     signUp: "Sign Up",
     createAccount: "Create Account",
-    subtitle: "WG Manager — VLESS Reality on your VPS",
+    subtitle: "VLESS Manager — VLESS Reality on your VPS",
     email: "Email",
     password: "Password",
     loading: "Loading...",
@@ -103,6 +107,8 @@ export const en: Dictionary = {
   },
   nav: {
     servers: "Servers",
+    info: "Information",
+    about: "About",
     logOut: "Log out",
   },
   dashboard: {
@@ -127,8 +133,40 @@ export const en: Dictionary = {
     badgeRelay: "RU relay",
     badgePlusRelay: "+relay",
     deleteConfirm:
-      'Delete server "{name}" ({ip})?\n\nThis removes it from WG Manager only — Xray on the VPS is not uninstalled.',
+      'Delete server "{name}" ({ip})?\n\nThis removes it from VLESS Manager only — Xray on the VPS is not uninstalled.',
     deleteFailed: "Could not delete server",
+    addRelay: "RU Relay",
+    relayChildOf: "→ {name}",
+  },
+  about: {
+    pageTitle: "About",
+    missionTitle: "Why VLESS Manager exists",
+    missionBody:
+      "We built this panel so self-hosted VPN setup takes minutes, not an evening of SSH and config files. You own the server and keys — we automate Xray (VLESS + Reality) and give you a ready QR code.",
+    notTitle: "What we are not",
+    notItems: [
+      "Not a VPN subscription service and we don’t host your traffic",
+      "No guarantee of bypassing every block — that depends on network, VPS, and client",
+      "Not a substitute for legal or security advice for your organization",
+    ],
+    principlesTitle: "Principles",
+    principles: [
+      {
+        title: "Your VPS, your control",
+        body: "You pay the provider. We don’t access your traffic after setup.",
+      },
+      {
+        title: "Transparent automation",
+        body: "Setup runs over SSH with open scripts; diagnostics are visible in the UI.",
+      },
+      {
+        title: "No extra billing layer",
+        body: "No in-app subscriptions — only servers you add yourself.",
+      },
+    ],
+    disclaimerTitle: "Disclaimer",
+    disclaimerBody:
+      "You choose the provider, region, and how you use the service. Follow applicable laws and hosting terms. VLESS Manager is provided “as is” without warranties. Timeweb partner links are referrals — hosting is billed directly by the provider.",
   },
   partner: {
     title: "Get a VPS via Timeweb (partner link)",
@@ -140,7 +178,7 @@ export const en: Dictionary = {
     step1Link: "timeweb.cloud (referral)",
     step2Title: "2. Add our SSH public key (recommended)",
     step2Body:
-      "When creating the VPS in Timeweb: open SSH keys → add a new key → paste the public key below → select it for the new server. Then you never need to save the root password in WG Manager.",
+      "When creating the VPS in Timeweb: open SSH keys → add a new key → paste the public key below → select it for the new server. Then you never need to save the root password in VLESS Manager.",
     copyKey: "Copy public key",
     keyMissing:
       "Platform public key is not configured yet (NEXT_PUBLIC_WG_SSH_PUBLIC_KEY). Ask the operator to set it, or use root password as a fallback when adding the server.",
@@ -160,13 +198,16 @@ export const en: Dictionary = {
     namePlaceholder: "My VPN Server",
     ipv4: "IPv4 Address",
     sshPort: "SSH Port",
+    sshUsername: "SSH username",
+    sshUsernameHint:
+      "Default is root. For ubuntu/debian, enter that user — passwordless sudo (sudo -n) is required.",
     auth: "SSH authentication",
     sshKey: "SSH key",
     sshKeyHint: "Recommended — safer",
-    password: "Root password",
+    password: "Password",
     passwordAlt: "Alternative",
-    rootPassword: "Root Password",
-    rootPasswordPlaceholder: "Enter root password",
+    rootPassword: "SSH password",
+    rootPasswordPlaceholder: "Enter SSH user password",
     vlessPort: "VLESS Port",
     vlessPortTip:
       "Default 443 — best for Reality in RU; installer probes SNI reachability.",
@@ -180,7 +221,7 @@ export const en: Dictionary = {
       "With SSH key auth we don’t store a password. Add the platform public key on the VPS first.",
     failed: "Failed to add server",
     errors: {
-      passwordRequired: "Root password is required in password mode",
+      passwordRequired: "SSH password is required in password mode",
       platformKeyMissing:
         "Platform SSH key is not configured. Use password mode, or ask the operator to set NEXT_PUBLIC_WG_SSH_PUBLIC_KEY / WG_SSH_PRIVATE_KEY.",
       notAuthenticated: "Not authenticated",
@@ -199,21 +240,30 @@ export const en: Dictionary = {
     ipv4: "IPv4 address",
     ipv4Tip: "Fix a mistyped IP here, then run Setup again if needed.",
     sshPort: "SSH port",
+    sshUsername: "SSH username",
+    sshUsernameHint:
+      "Non-root users need passwordless sudo on the VPS.",
     saving: "Saving…",
     save: "Save",
     errors: {
       nameRequired: "Name is required",
       ipRequired: "IP address is required",
+      usernameInvalid: "Invalid SSH username",
       failed: "Failed to update server",
     },
   },
   setup: {
     title: "Setup VPN",
     subtitle: "Install VLESS Reality on this VPS over SSH",
+    relayTitle: "Setup RU Relay",
+    relaySubtitle:
+      "Russian hop: clients connect to a VPS in RU, traffic exits through your abroad server",
+    linkedExit: "Exit server: {name} ({ip})",
     back: "Back",
     details: "Server connection details",
     ip: "IP Address",
     sshPort: "SSH Port",
+    sshUsername: "SSH username",
     sni: "SNI Domain",
     vlessPort: "VLESS Port",
     installation: "Installation",
@@ -239,6 +289,7 @@ export const en: Dictionary = {
     relayCardHint:
       "Optional Russian hop: traffic looks like a local site, then exits abroad through this VPS.",
     addRelay: "Add RU Relay",
+    openRelay: "Open relay config",
     replaceRelay: "Replace / reinstall RU relay",
     viaRelay: "Via RU relay (use when direct is blocked)",
     statusReady: "Ready",
@@ -268,17 +319,24 @@ export const en: Dictionary = {
   relay: {
     title: "Add RU Relay",
     description:
-      "Layer 1: client → Russian VPS (Reality) → {name} (exit) → internet. Takes a few minutes — keep this open.",
+      "Enter your RU VPS — you’ll land on a setup page like a normal server. Abroad VPS server: {name}.",
     name: "Name",
+    namePlaceholder: "RU Relay → {name}",
     ipv4: "RU VPS IPv4",
     sshPort: "SSH port",
+    sshUsername: "SSH username",
+    sshUsernameHint:
+      "Default is root. For ubuntu/debian, passwordless sudo is required.",
     auth: "SSH auth",
     sshKey: "SSH key",
     password: "Password",
+    authHint:
+      "SSH key works only if this RU VPS already has the platform public key. Otherwise choose root password.",
     relaySni: "Relay SNI (client → RU)",
     relaySniHint: "Default mimics gosuslugi over Reality on :443.",
-    install: "Install RU relay",
-    installing: "Installing…",
+    continue: "Continue → Setup",
+    installing: "Saving…",
     cancel: "Cancel",
+    failed: "Failed to register RU relay",
   },
 };

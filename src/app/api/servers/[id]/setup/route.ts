@@ -5,6 +5,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { createClient } from "@/lib/supabase/server";
 import { resolveSshAuth } from "@/lib/ssh/auth";
+import { normalizeSshUsername } from "@/lib/ssh/run-remote";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -18,6 +19,7 @@ const serverCredentialsSchema = z.object({
     .trim()
     .min(1, "Server is missing ip_address"),
   ssh_port: z.number().int().min(1).max(65535).nullable().optional(),
+  ssh_username: z.union([z.string(), z.null(), z.undefined()]).optional(),
   ssh_password: z.union([z.string(), z.null(), z.undefined()]).optional(),
   ssh_private_key: z.union([z.string(), z.null(), z.undefined()]).optional(),
   sni_domain: z.string().nullable().optional(),
@@ -173,6 +175,7 @@ export async function POST(
       id: serverRow.id,
       ip_address: serverRow.ip_address,
       ssh_port: serverRow.ssh_port,
+      ssh_username: serverRow.ssh_username,
       ssh_password: serverRow.ssh_password,
       ssh_private_key: serverRow.ssh_private_key,
       sni_domain: serverRow.sni_domain,
@@ -189,6 +192,7 @@ export async function POST(
 
     const server = credentials.data;
     const sshPort = server.ssh_port || 22;
+    const sshUsername = normalizeSshUsername(server.ssh_username);
     const sni = server.sni_domain || "www.cloudflare.com";
     const vlessPort = server.vless_port || 443;
 
@@ -224,7 +228,7 @@ export async function POST(
     const ssh = new SSHClient();
 
     console.log(
-      `Connecting to ${server.ip_address}:${sshPort} via ${sshAuth.type}...`
+      `Connecting to ${sshUsername}@${server.ip_address}:${sshPort} via ${sshAuth.type}...`
     );
     try {
       await new Promise<void>((resolve, reject) => {
@@ -234,7 +238,7 @@ export async function POST(
           .connect({
             host: server.ip_address,
             port: sshPort,
-            username: "root",
+            username: sshUsername,
             readyTimeout: 30_000,
             ...(sshAuth.type === "privateKey"
               ? {
@@ -257,7 +261,11 @@ export async function POST(
     console.log("SSH connected successfully");
 
     const escapedScript = scriptContent.replace(/'/g, "'\\''");
-    const command = `export DEBIAN_FRONTEND=noninteractive TERM=xterm CURL_HOME=/tmp; echo '${escapedScript}' | bash --noprofile --norc -s -- ${sni} ${vlessPort} ${server.ip_address}`;
+    const bashRunner =
+      sshUsername === "root"
+        ? "bash --noprofile --norc -s --"
+        : "sudo -n bash --noprofile --norc -s --";
+    const command = `export DEBIAN_FRONTEND=noninteractive TERM=xterm CURL_HOME=/tmp; echo '${escapedScript}' | ${bashRunner} ${sni} ${vlessPort} ${server.ip_address}`;
 
     console.log("Running installation script...");
     const execResult = await new Promise<{

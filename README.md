@@ -1,10 +1,12 @@
-# WG Manager
+# VLESS Manager
 
 SaaS MVP that turns a bare Linux VPS into a working **VLESS Reality** VPN with one click: add the server in the dashboard, run setup over SSH, get a client-ready `vless://` link and QR code for Hiddify / v2rayNG / Shadowrocket.
 
+> **Note:** the repo / demo domains historically used the name `wg-manager` (WireGuard-era scaffolding). The product installs **Xray VLESS + Reality**, not WireGuard.
+
 **Live demo (Vercel):** [https://wg-manager-pi.vercel.app](https://wg-manager-pi.vercel.app)
 
-**Why it exists:** manual Reality installs (3X-UI panels, key parsing, SNI/port tuning for DPI) are error-prone. WG Manager automates the proven recipe — pinned Xray, reachable Reality dest probing, correct `pbk`, BBR — so you ship a connectable config instead of a timeout.
+**Why it exists:** manual Reality installs (3X-UI panels, key parsing, SNI/port tuning for DPI) are error-prone. VLESS Manager automates the proven recipe — pinned Xray, reachable Reality dest probing, correct `pbk`, BBR — so you ship a connectable config instead of a timeout.
 
 ---
 
@@ -17,7 +19,7 @@ flowchart TB
     Hiddify["VPN client<br/>(Hiddify, v2rayNG, …)"]
   end
 
-  subgraph App["WG Manager — Next.js 15"]
+  subgraph App["VLESS Manager — Next.js 15"]
     UI["App Router UI<br/>Auth · Servers · Setup"]
     API["API Route<br/>POST /api/servers/[id]/setup"]
     Script["scripts/install-vless-reality.sh"]
@@ -90,7 +92,7 @@ flowchart TB
 Primary go-to-market is the **Timeweb Agent** referral program (not reseller billing inside the app):
 
 1. User opens **Get VPS via Timeweb** → partner link (`NEXT_PUBLIC_TIMEWEB_PARTNER_URL`, default `https://timeweb.cloud/?i=144829`).
-2. At Timeweb they create a cloud server and attach the **WG Manager SSH public key** (`NEXT_PUBLIC_WG_SSH_PUBLIC_KEY`).
+2. At Timeweb they create a cloud server and attach the **platform SSH public key** (`NEXT_PUBLIC_WG_SSH_PUBLIC_KEY`).
 3. Back in the app: **Add Server** (IP only, SSH key mode) → **Setup VPN**.
 4. Root password is optional (less safe — stored in DB). Prefer SSH key so passwords are not saved.
 

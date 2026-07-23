@@ -131,10 +131,13 @@ export default function ServerSetupPage() {
   );
   const [customSni, setCustomSni] = useState("");
   const [copied, setCopied] = useState(false);
-  const [copiedRelay, setCopiedRelay] = useState(false);
-  const [relayUrl, setRelayUrl] = useState("");
-  const [relayQrDataUrl, setRelayQrDataUrl] = useState("");
   const [relayDialogOpen, setRelayDialogOpen] = useState(false);
+  const [relayChildId, setRelayChildId] = useState<string | null>(null);
+  const [exitServer, setExitServer] = useState<{
+    id: string;
+    name: string;
+    ip_address: string;
+  } | null>(null);
   const stepTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const clearStepTimer = useCallback(() => {
@@ -151,15 +154,6 @@ export default function ServerSetupPage() {
       color: { dark: "#000000", light: "#ffffff" },
     });
     setQrDataUrl(dataUrl);
-  }, []);
-
-  const generateRelayQr = useCallback(async (url: string) => {
-    const dataUrl = await QRCode.toDataURL(url, {
-      width: 280,
-      margin: 2,
-      color: { dark: "#000000", light: "#ffffff" },
-    });
-    setRelayQrDataUrl(dataUrl);
   }, []);
 
   const loadServer = useCallback(async () => {
@@ -200,16 +194,32 @@ export default function ServerSetupPage() {
       setPhase("idle");
     }
 
-    if (nextServer.relay_vless_config_url) {
-      setRelayUrl(nextServer.relay_vless_config_url);
-      void generateRelayQr(nextServer.relay_vless_config_url);
+    if (nextServer.role === "relay" && nextServer.exit_server_id) {
+      const { data: exitRow } = await supabase
+        .from("servers")
+        .select("id, name, ip_address")
+        .eq("id", nextServer.exit_server_id)
+        .maybeSingle();
+      setExitServer(exitRow ?? null);
+      setRelayChildId(null);
+    } else if (isRuRelayEnabled() && nextServer.role !== "relay") {
+      const { data: child } = await supabase
+        .from("servers")
+        .select("id")
+        .eq("exit_server_id", nextServer.id)
+        .eq("role", "relay")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      setRelayChildId(child?.id ?? null);
+      setExitServer(null);
     } else {
-      setRelayUrl("");
-      setRelayQrDataUrl("");
+      setRelayChildId(null);
+      setExitServer(null);
     }
 
     setLoading(false);
-  }, [SETUP_STEPS.length, generateQr, generateRelayQr, s.previousFailed, s.serverNotFound, serverId]);
+  }, [SETUP_STEPS.length, generateQr, s.previousFailed, s.serverNotFound, serverId]);
 
   useEffect(() => {
     void loadServer();
@@ -241,6 +251,9 @@ export default function ServerSetupPage() {
   }, [customSni, server, sniPreset]);
 
   const runSetup = useCallback(async () => {
+    if (!server) return;
+    const isRelay = server.role === "relay";
+
     setError("");
     setPhase("running");
     setCopied(false);
@@ -250,9 +263,15 @@ export default function ServerSetupPage() {
     let latestDiagnostics = "";
 
     try {
-      await saveSniDomain();
+      if (!isRelay) {
+        await saveSniDomain();
+      }
 
-      const response = await fetch(`/api/servers/${serverId}/setup`, {
+      const endpoint = isRelay
+        ? `/api/servers/${serverId}/relay/install`
+        : `/api/servers/${serverId}/setup`;
+
+      const response = await fetch(endpoint, {
         method: "POST",
       });
 
@@ -303,6 +322,7 @@ export default function ServerSetupPage() {
     s.errors,
     s.setupFailed,
     saveSniDomain,
+    server,
     serverId,
     startProgressAnimation,
   ]);
@@ -312,13 +332,6 @@ export default function ServerSetupPage() {
     await navigator.clipboard.writeText(vlessUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-  };
-
-  const handleCopyRelay = async () => {
-    if (!relayUrl) return;
-    await navigator.clipboard.writeText(relayUrl);
-    setCopiedRelay(true);
-    setTimeout(() => setCopiedRelay(false), 2000);
   };
 
   const isRelayServer = server?.role === "relay";
@@ -372,8 +385,19 @@ export default function ServerSetupPage() {
 
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">{s.title}</h1>
-          <p className="mt-1 text-muted-foreground">{s.subtitle}</p>
+          <h1 className="text-3xl font-bold tracking-tight">
+            {isRelayServer ? s.relayTitle : s.title}
+          </h1>
+          <p className="mt-1 text-muted-foreground">
+            {isRelayServer ? s.relaySubtitle : s.subtitle}
+          </p>
+          {isRelayServer && exitServer && (
+            <p className="mt-2 text-sm text-muted-foreground">
+              {s.linkedExit
+                .replace("{name}", exitServer.name)
+                .replace("{ip}", exitServer.ip_address)}
+            </p>
+          )}
         </div>
         <span
           className={cn(
@@ -401,6 +425,10 @@ export default function ServerSetupPage() {
           <div>
             <p className="text-muted-foreground">{s.sshPort}</p>
             <p className="font-medium">{server.ssh_port}</p>
+          </div>
+          <div>
+            <p className="text-muted-foreground">{s.sshUsername}</p>
+            <p className="font-medium">{server.ssh_username || "root"}</p>
           </div>
           <div>
             <p className="text-muted-foreground">{s.sni}</p>
@@ -463,7 +491,7 @@ export default function ServerSetupPage() {
             })}
           </ol>
 
-          {(phase === "idle" || phase === "error") && (
+          {(phase === "idle" || phase === "error") && !isRelayServer && (
             <SniDomainField
               preset={sniPreset}
               customValue={customSni}
@@ -559,12 +587,10 @@ export default function ServerSetupPage() {
               <Button asChild>
                 <Link href="/dashboard">{s.backServers}</Link>
               </Button>
-              {!isRelayServer && (
-                <Button variant="outline" onClick={() => void runSetup()}>
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  {s.reRun}
-                </Button>
-              )}
+              <Button variant="outline" onClick={() => void runSetup()}>
+                <RefreshCw className="mr-2 h-4 w-4" />
+                {s.reRun}
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -577,43 +603,20 @@ export default function ServerSetupPage() {
             <CardDescription>{s.relayCardHint}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {relayUrl ? (
-              <>
-                {relayQrDataUrl && (
-                  <div className="flex justify-center rounded-lg border border-border bg-white p-4">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={relayQrDataUrl}
-                      alt={s.relayQrAlt}
-                      width={280}
-                      height={280}
-                      className="h-[280px] w-[280px]"
-                    />
-                  </div>
-                )}
-                <div className="space-y-2">
-                  <p className="text-sm font-medium">{s.viaRelay}</p>
-                  <div className="flex flex-col gap-2 sm:flex-row">
-                    <code className="flex-1 overflow-x-auto rounded-md border border-border bg-muted px-3 py-2 text-xs break-all">
-                      {relayUrl}
-                    </code>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => void handleCopyRelay()}
-                    >
-                      <Copy className="mr-2 h-4 w-4" />
-                      {copiedRelay ? t.common.copied : t.common.copy}
-                    </Button>
-                  </div>
-                </div>
+            {relayChildId ? (
+              <div className="flex flex-wrap gap-2">
+                <Button asChild>
+                  <Link href={`/dashboard/servers/${relayChildId}/setup`}>
+                    {s.openRelay}
+                  </Link>
+                </Button>
                 <Button
                   variant="outline"
                   onClick={() => setRelayDialogOpen(true)}
                 >
                   {s.replaceRelay}
                 </Button>
-              </>
+              </div>
             ) : (
               <Button onClick={() => setRelayDialogOpen(true)}>
                 {s.addRelay}
@@ -623,18 +626,12 @@ export default function ServerSetupPage() {
         </Card>
       )}
 
-      {isRuRelayEnabled() && (
+      {isRuRelayEnabled() && !isRelayServer && (
         <AddRuRelayDialog
           open={relayDialogOpen}
           exitServerId={server.id}
           exitServerName={server.name}
           onClose={() => setRelayDialogOpen(false)}
-          onSuccess={({ vlessConfigUrl, diagnostics: relayDiag }) => {
-            setRelayUrl(vlessConfigUrl);
-            void generateRelayQr(vlessConfigUrl);
-            if (relayDiag) setDiagnostics(relayDiag);
-            void loadServer();
-          }}
         />
       )}
     </div>

@@ -1,4 +1,4 @@
--- WG Manager v2 — RU Relay columns
+-- VLESS Manager v2 — RU Relay columns
 -- Run in Supabase SQL Editor once.
 
 ALTER TABLE servers
@@ -32,3 +32,6 @@ COMMENT ON COLUMN servers.role IS 'exit (abroad) | relay (RU hop)';
 COMMENT ON COLUMN servers.exit_server_id IS 'For role=relay: FK to exit server';
 COMMENT ON COLUMN servers.relay_vless_config_url IS 'On exit: client VLESS URL via RU relay';
 COMMENT ON COLUMN servers.relay_uuid IS 'On exit: UUID of xHTTP Reality inbound for relays';
+
+-- Reload PostgREST schema cache (run after adding columns)
+NOTIFY pgrst, 'reload schema';

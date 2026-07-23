@@ -118,6 +118,7 @@ export async function POST(
     const result = await runRemoteBashScript({
       host: exitRow.ip_address,
       port: exitRow.ssh_port || 22,
+      username: exitRow.ssh_username,
       auth: sshAuth,
       scriptContent,
       args: [String(relayPort), exitSni, relayPath],

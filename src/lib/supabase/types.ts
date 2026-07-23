@@ -22,6 +22,8 @@ export type Server = {
   name: string;
   ip_address: string;
   ssh_port: number;
+  /** SSH login user; default root — see scripts/ssh-username-column.sql */
+  ssh_username?: string | null;
   ssh_password?: string | null;
   ssh_private_key?: string | null;
   wg_public_key?: string | null;

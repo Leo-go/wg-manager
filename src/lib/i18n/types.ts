@@ -42,6 +42,9 @@ export type Dictionary = {
     osTip: string;
     relayTitle: string;
     relayBody: string;
+    whitelistTitle: string;
+    whitelistBody: string;
+    whitelistLinkLabel: string;
     disclaimer: string;
   };
   auth: {
@@ -60,6 +63,8 @@ export type Dictionary = {
   };
   nav: {
     servers: string;
+    info: string;
+    about: string;
     logOut: string;
   };
   dashboard: {
@@ -85,6 +90,19 @@ export type Dictionary = {
     badgePlusRelay: string;
     deleteConfirm: string;
     deleteFailed: string;
+    addRelay: string;
+    relayChildOf: string;
+  };
+  about: {
+    pageTitle: string;
+    missionTitle: string;
+    missionBody: string;
+    notTitle: string;
+    notItems: string[];
+    principlesTitle: string;
+    principles: { title: string; body: string }[];
+    disclaimerTitle: string;
+    disclaimerBody: string;
   };
   partner: {
     title: string;
@@ -109,6 +127,8 @@ export type Dictionary = {
     namePlaceholder: string;
     ipv4: string;
     sshPort: string;
+    sshUsername: string;
+    sshUsernameHint: string;
     auth: string;
     sshKey: string;
     sshKeyHint: string;
@@ -143,21 +163,28 @@ export type Dictionary = {
     ipv4: string;
     ipv4Tip: string;
     sshPort: string;
+    sshUsername: string;
+    sshUsernameHint: string;
     saving: string;
     save: string;
     errors: {
       nameRequired: string;
       ipRequired: string;
+      usernameInvalid: string;
       failed: string;
     };
   };
   setup: {
     title: string;
     subtitle: string;
+    relayTitle: string;
+    relaySubtitle: string;
+    linkedExit: string;
     back: string;
     details: string;
     ip: string;
     sshPort: string;
+    sshUsername: string;
     sni: string;
     vlessPort: string;
     installation: string;
@@ -181,6 +208,7 @@ export type Dictionary = {
     relayCardTitle: string;
     relayCardHint: string;
     addRelay: string;
+    openRelay: string;
     replaceRelay: string;
     viaRelay: string;
     statusReady: string;
@@ -206,15 +234,20 @@ export type Dictionary = {
     title: string;
     description: string;
     name: string;
+    namePlaceholder: string;
     ipv4: string;
     sshPort: string;
+    sshUsername: string;
+    sshUsernameHint: string;
     auth: string;
     sshKey: string;
     password: string;
+    authHint: string;
     relaySni: string;
     relaySniHint: string;
-    install: string;
+    continue: string;
     installing: string;
     cancel: string;
+    failed: string;
   };
 };

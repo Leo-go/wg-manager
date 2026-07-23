@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { getPlatformSshPublicKey } from "@/lib/constants/partner";
 import { Button } from "@/components/ui/button";
@@ -24,11 +25,6 @@ type AddRuRelayDialogProps = {
   exitServerId: string;
   exitServerName: string;
   onClose: () => void;
-  onSuccess: (payload: {
-    vlessConfigUrl: string;
-    relayServerId: string;
-    diagnostics?: string;
-  }) => void;
 };
 
 export function AddRuRelayDialog({
@@ -36,13 +32,14 @@ export function AddRuRelayDialog({
   exitServerId,
   exitServerName,
   onClose,
-  onSuccess,
 }: AddRuRelayDialogProps) {
+  const router = useRouter();
   const { t } = useI18n();
   const r = t.relay;
   const [name, setName] = useState("");
   const [ipAddress, setIpAddress] = useState("");
   const [sshPort, setSshPort] = useState("22");
+  const [sshUsername, setSshUsername] = useState("root");
   const [authMode, setAuthMode] = useState<AuthMode>("ssh_key");
   const [sshPassword, setSshPassword] = useState("");
   const [relaySni, setRelaySni] = useState("www.gosuslugi.ru");
@@ -55,6 +52,7 @@ export function AddRuRelayDialog({
     setName("");
     setIpAddress("");
     setSshPort("22");
+    setSshUsername("root");
     setAuthMode("ssh_key");
     setSshPassword("");
     setRelaySni("www.gosuslugi.ru");
@@ -80,9 +78,10 @@ export function AddRuRelayDialog({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            name: name.trim() || `RU Relay → ${exitServerName}`,
+            name: name.trim() || r.namePlaceholder.replace("{name}", exitServerName),
             ip_address: ipAddress.trim(),
             ssh_port: Number.parseInt(sshPort, 10) || 22,
+            ssh_username: sshUsername.trim() || "root",
             auth_mode: authMode,
             ssh_password: authMode === "password" ? sshPassword : undefined,
             relay_sni: relaySni.trim() || "www.gosuslugi.ru",
@@ -92,25 +91,20 @@ export function AddRuRelayDialog({
 
       const payload = (await response.json()) as {
         success?: boolean;
-        vlessConfigUrl?: string;
         relayServerId?: string;
-        diagnostics?: string;
         error?: string;
       };
 
-      if (!response.ok || !payload.success || !payload.vlessConfigUrl) {
-        throw new Error(payload.error || "Failed to set up RU relay");
+      if (!response.ok || !payload.success || !payload.relayServerId) {
+        throw new Error(payload.error || r.failed);
       }
 
-      onSuccess({
-        vlessConfigUrl: payload.vlessConfigUrl,
-        relayServerId: payload.relayServerId ?? "",
-        diagnostics: payload.diagnostics,
-      });
       resetForm();
       onClose();
+      router.push(`/dashboard/servers/${payload.relayServerId}/setup`);
+      router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "RU relay setup failed");
+      setError(err instanceof Error ? err.message : r.failed);
     } finally {
       setLoading(false);
     }
@@ -133,7 +127,7 @@ export function AddRuRelayDialog({
               id="relay-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder={`RU Relay → ${exitServerName}`}
+              placeholder={r.namePlaceholder.replace("{name}", exitServerName)}
               disabled={loading}
             />
           </div>
@@ -161,6 +155,19 @@ export function AddRuRelayDialog({
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="relay-ssh-user">{r.sshUsername}</Label>
+            <Input
+              id="relay-ssh-user"
+              value={sshUsername}
+              onChange={(e) => setSshUsername(e.target.value)}
+              placeholder="root"
+              required
+              disabled={loading}
+            />
+            <p className="text-xs text-muted-foreground">{r.sshUsernameHint}</p>
+          </div>
+
+          <div className="space-y-2">
             <Label>{r.auth}</Label>
             <div className="flex gap-2">
               <Button
@@ -182,6 +189,7 @@ export function AddRuRelayDialog({
                 {r.password}
               </Button>
             </div>
+            <p className="text-xs text-muted-foreground">{r.authHint}</p>
             {authMode === "ssh_key" && (
               <p className="text-xs text-muted-foreground">
                 {t.addServer.helpNoPassword}
@@ -236,7 +244,7 @@ export function AddRuRelayDialog({
                   {r.installing}
                 </>
               ) : (
-                r.install
+                r.continue
               )}
             </Button>
           </DialogFooter>

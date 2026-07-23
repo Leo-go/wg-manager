@@ -2,12 +2,22 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LogOut, Server } from "lucide-react";
+import { FileText, Info, LogOut, Server } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { LanguageSwitcher } from "@/components/i18n/language-switcher";
 import { useI18n } from "@/lib/i18n/provider";
+
+function isNavActive(pathname: string, href: string): boolean {
+  if (href === "/dashboard") {
+    return (
+      pathname === "/dashboard" ||
+      pathname.startsWith("/dashboard/servers")
+    );
+  }
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
 
 export function Sidebar({ userEmail }: { userEmail: string | null }) {
   const pathname = usePathname();
@@ -16,6 +26,8 @@ export function Sidebar({ userEmail }: { userEmail: string | null }) {
 
   const navItems = [
     { href: "/dashboard", label: t.nav.servers, icon: Server },
+    { href: "/dashboard/info", label: t.nav.info, icon: Info },
+    { href: "/dashboard/about", label: t.nav.about, icon: FileText },
   ];
 
   return (
@@ -31,7 +43,7 @@ export function Sidebar({ userEmail }: { userEmail: string | null }) {
             href={href}
             className={cn(
               "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-              pathname === href || pathname.startsWith(`${href}/`)
+              isNavActive(pathname, href)
                 ? "bg-primary text-primary-foreground"
                 : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
             )}

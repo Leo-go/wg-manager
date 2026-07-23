@@ -79,6 +79,7 @@ export async function POST(request: NextRequest) {
     // Optional columns — apply supabase/timeweb.sql if present
     insertPayload.provider = "timeweb";
     insertPayload.provider_server_id = provisioned.providerServerId;
+    insertPayload.ssh_username = "root";
 
     let insertResult = await supabase
       .from("servers")

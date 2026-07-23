@@ -1,6 +1,8 @@
-# Deploy WG Manager to Vercel
+# Deploy VLESS Manager to Vercel
 
 Step-by-step guide to publish this MVP from GitHub to production.
+
+> Repo / Vercel project may still be named `wg-manager` — that is legacy naming. The app is a **VLESS Reality** installer, not WireGuard.
 
 ## 1. Sign in to Vercel
 
