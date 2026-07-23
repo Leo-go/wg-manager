@@ -35,7 +35,8 @@ export type ExitServerRow = {
 type SupabaseServer = {
   from: (table: string) => {
     update: (values: Record<string, unknown>) => {
-      eq: (col: string, val: string) => Promise<unknown>;
+      // Supabase returns a thenable filter builder, not a bare Promise
+      eq: (col: string, val: string) => PromiseLike<unknown>;
     };
   };
 };
