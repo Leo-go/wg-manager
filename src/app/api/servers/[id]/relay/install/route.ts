@@ -243,10 +243,15 @@ export async function POST(
         .eq("id", exitId);
     }
 
+    const friendly = extractUserFacingError(
+      `${fullOutput}\n${message}`,
+      message
+    );
+
     return NextResponse.json(
       {
-        error: extractUserFacingError(`${fullOutput}\n${message}`, message),
-        diagnostics: fullOutput || undefined,
+        error: friendly,
+        diagnostics: [fullOutput, friendly].filter(Boolean).join("\n") || undefined,
         relayServerId,
       },
       { status: 500 }

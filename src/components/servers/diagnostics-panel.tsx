@@ -6,6 +6,8 @@ import { cn } from "@/lib/utils";
 interface DiagnosticsPanelProps {
   output: string;
   error?: string;
+  /** When true, never treat the result as healthy (failed setup phase). */
+  failed?: boolean;
 }
 
 type DiagnosticsKind =
@@ -19,12 +21,12 @@ type DiagnosticsKind =
   | "install-script"
   | "unknown";
 
-function buildDiagnostics(kindSource: string) {
+const EXPLICIT_ERROR =
+  /setup failed|installation failed|script execution failed|ssh connection failed|ssh:\s*connect|unauthorized|server not found|invalid credentials|timed out|etimedout|connection refused|econnrefused|address already in use|could not parse vless|exit vpn must be ready|relay server not found|not linked to an exit|предыдущая установка|не удалась|установка не удалась/i;
+
+function buildDiagnostics(kindSource: string, failed: boolean) {
   const text = kindSource.toLowerCase();
-  const hasExplicitError =
-    /setup failed|installation failed|script execution failed|ssh connection failed|unauthorized|server not found|invalid credentials|timed out|connection refused|address already in use|could not parse vless|exit vpn must be ready|relay server not found|not linked to an exit/.test(
-      text
-    );
+  const hasExplicitError = EXPLICIT_ERROR.test(text);
 
   const signals: string[] = [];
 
@@ -33,7 +35,10 @@ function buildDiagnostics(kindSource: string) {
   };
 
   pushSignal("invalid credentials", /invalid credentials/.test(text));
-  pushSignal("connection timed out", /connection timed out|timed out/.test(text));
+  pushSignal(
+    "connection timed out",
+    /connection timed out|timed out|etimedout/.test(text)
+  );
   pushSignal("connection refused", /connection refused|econnrefused/.test(text));
   pushSignal("host not found", /host not found|enotfound|getaddrinfo/.test(text));
   pushSignal(
@@ -50,18 +55,27 @@ function buildDiagnostics(kindSource: string) {
   );
   pushSignal("port already in use", /port .*already in use|address already in use/.test(text));
   pushSignal("parse vless", /parse vless|could not parse vless/.test(text));
-  pushSignal("exit vpn must be ready", /exit vpn must be ready|exit server not found|linked to an exit/.test(text));
+  pushSignal(
+    "exit vpn must be ready",
+    /exit vpn must be ready|exit server not found|linked to an exit/.test(text)
+  );
 
   let kind: DiagnosticsKind = "unknown";
 
   if (!text.trim()) {
-    kind = "healthy";
-  } else if (!hasExplicitError) {
-    kind = "healthy";
-  } else if (/could not parse vless|parse vless/.test(text)) {
+    kind = failed ? "unknown" : "healthy";
+  } else if (
+    /could not parse vless|parse vless/.test(text)
+  ) {
     kind = "parse-config";
   } else if (/port .*already in use|address already in use/.test(text)) {
     kind = "port-in-use";
+  } else if (
+    /ssh connection failed.*(?:timed out|refused|host not found)|connection timed out|etimedout|timed out while waiting|connection refused|econnrefused|host not found|enotfound|getaddrinfo|ssh:\s*connect|connect to host/.test(
+      text
+    )
+  ) {
+    kind = "ssh-network";
   } else if (
     /authorized_keys|platform public key|ssh key mode|wg_ssh_private_key|wg_ssh_private_key_passphrase|cannot parse privatekey|encrypted private openssh key|invalid private key|passphrase/.test(
       text
@@ -71,28 +85,43 @@ function buildDiagnostics(kindSource: string) {
   } else if (/invalid credentials/.test(text)) {
     kind = "ssh-auth";
   } else if (
-    /connection timed out|timed out|connection refused|econnrefused|host not found|enotfound|getaddrinfo/.test(
-      text
-    )
-  ) {
-    kind = "ssh-network";
-  } else if (
     /exit vpn must be ready|exit server not found|linked to an exit/.test(text)
   ) {
     kind = "relay-dependency";
-  } else if (/script execution failed|install failed|setup failed|xray failed/.test(text)) {
+  } else if (
+    /script execution failed|install failed|setup failed|xray failed/.test(text)
+  ) {
     kind = "install-script";
+  } else if (!hasExplicitError && !failed) {
+    // Success logs often contain Reality PrivateKey/PublicKey — do not treat as SSH-key failure.
+    kind = "healthy";
+  } else {
+    kind = "unknown";
   }
 
   return { kind, signals };
 }
 
-export function DiagnosticsPanel({ output, error = "" }: DiagnosticsPanelProps) {
+export function DiagnosticsPanel({
+  output,
+  error = "",
+  failed = false,
+}: DiagnosticsPanelProps) {
   const { t } = useI18n();
   const source = [error, output].filter(Boolean).join("\n");
-  if (!source) return null;
+  if (!source && !failed) return null;
 
-  const { kind, signals } = buildDiagnostics(source);
+  const { kind, signals } = buildDiagnostics(source, failed);
+  const rawParts = [error.trim(), output.trim()].filter(Boolean);
+  const rawText =
+    rawParts.length === 0
+      ? "—"
+      : rawParts.length === 2 &&
+          (output.includes(error) || error.includes(output))
+        ? rawParts[0].length >= rawParts[1].length
+          ? rawParts[0]
+          : rawParts[1]
+        : rawParts.join("\n\n");
 
   const issueTitle =
     kind === "healthy"
@@ -173,6 +202,11 @@ export function DiagnosticsPanel({ output, error = "" }: DiagnosticsPanelProps) 
           </span>
         </div>
         <p className="text-sm">{issueTitle}</p>
+        {failed && error.trim() && error.trim() !== issueTitle && (
+          <p className="mt-2 whitespace-pre-wrap text-xs text-muted-foreground">
+            {error.trim()}
+          </p>
+        )}
       </div>
 
       {nextSteps.length > 0 && (
@@ -207,7 +241,7 @@ export function DiagnosticsPanel({ output, error = "" }: DiagnosticsPanelProps) 
           {t.setup.diagnosticsRawOutput}
         </summary>
         <pre className="mt-3 max-h-80 overflow-auto whitespace-pre-wrap break-words text-xs">
-          {output}
+          {rawText}
         </pre>
       </details>
     </div>

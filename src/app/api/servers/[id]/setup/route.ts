@@ -71,7 +71,11 @@ function extractUserFacingError(output: string, fallback: string): string {
     return "SSH connection failed: invalid credentials";
   }
 
-  if (/Timed out while waiting for handshake/i.test(output)) {
+  if (
+    /Timed out while waiting for handshake|Connection timed out|ETIMEDOUT|connect.*timed out/i.test(
+      output
+    )
+  ) {
     return "SSH connection failed: connection timed out";
   }
 
@@ -91,7 +95,11 @@ function mapSshError(error: unknown): Error {
   if (/All configured authentication methods failed/i.test(message)) {
     return new Error("SSH connection failed: invalid credentials");
   }
-  if (/Timed out while waiting for handshake|Timed out/i.test(message)) {
+  if (
+    /Timed out while waiting for handshake|Connection timed out|ETIMEDOUT|connect.*timed out|Timed out/i.test(
+      message
+    )
+  ) {
     return new Error("SSH connection failed: connection timed out");
   }
   if (/ECONNREFUSED/i.test(message)) {
@@ -355,7 +363,8 @@ export async function POST(
     return NextResponse.json(
       {
         error: friendly,
-        diagnostics: fullOutput || undefined,
+        // Always return something diagnosable — early SSH failures leave fullOutput empty.
+        diagnostics: [fullOutput, friendly].filter(Boolean).join("\n") || undefined,
       },
       { status }
     );

@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import QRCode from "qrcode";
 import {
-  AlertCircle,
   ArrowLeft,
   CheckCircle2,
   Copy,
@@ -50,7 +49,7 @@ function formatSetupError(
   if (/address already in use/i.test(message)) {
     return errors.portInUseGeneric;
   }
-  if (/SSH connection failed/i.test(message)) {
+  if (/SSH connection failed|ssh:\s*connect|ETIMEDOUT|Connection timed out/i.test(message)) {
     return message;
   }
   if (/missing ssh_password|ssh_password is required/i.test(message)) {
@@ -66,6 +65,50 @@ function formatSetupError(
     return errors.parseVless;
   }
   return message;
+}
+
+function setupErrorStorageKey(serverId: string) {
+  return `wg-setup-error:${serverId}`;
+}
+
+function setupDiagStorageKey(serverId: string) {
+  return `wg-setup-diag:${serverId}`;
+}
+
+function rememberSetupFailure(
+  serverId: string,
+  message: string,
+  diagnostics: string
+) {
+  try {
+    sessionStorage.setItem(setupErrorStorageKey(serverId), message);
+    sessionStorage.setItem(setupDiagStorageKey(serverId), diagnostics);
+  } catch {
+    // ignore quota / private mode
+  }
+}
+
+function readRememberedSetupFailure(serverId: string): {
+  message: string;
+  diagnostics: string;
+} {
+  try {
+    return {
+      message: sessionStorage.getItem(setupErrorStorageKey(serverId)) ?? "",
+      diagnostics: sessionStorage.getItem(setupDiagStorageKey(serverId)) ?? "",
+    };
+  } catch {
+    return { message: "", diagnostics: "" };
+  }
+}
+
+function clearRememberedSetupFailure(serverId: string) {
+  try {
+    sessionStorage.removeItem(setupErrorStorageKey(serverId));
+    sessionStorage.removeItem(setupDiagStorageKey(serverId));
+  } catch {
+    // ignore
+  }
 }
 
 type UiPhase = "idle" | "running" | "success" | "error";
@@ -180,13 +223,22 @@ export default function ServerSetupPage() {
     setCustomSni(sniState.customValue);
 
     if (nextServer.vless_config_url) {
+      clearRememberedSetupFailure(serverId);
       setVlessUrl(nextServer.vless_config_url);
       setPhase("success");
       setActiveStep(SETUP_STEPS.length);
       void generateQr(nextServer.vless_config_url);
     } else if (nextServer.installation_status === "error") {
       setPhase("error");
-      setError(s.previousFailed);
+      const remembered = readRememberedSetupFailure(serverId);
+      // Keep a more specific live error if already set; otherwise restore last failure.
+      setError((prev) => {
+        if (prev && prev !== s.previousFailed) return prev;
+        return remembered.message || s.previousFailed;
+      });
+      if (remembered.diagnostics) {
+        setDiagnostics((prev) => prev || remembered.diagnostics);
+      }
     } else if (nextServer.installation_status === "installing") {
       setPhase("running");
       setActiveStep(2);
@@ -258,9 +310,11 @@ export default function ServerSetupPage() {
     setPhase("running");
     setCopied(false);
     setDiagnostics("");
+    clearRememberedSetupFailure(serverId);
     startProgressAnimation();
 
     let latestDiagnostics = "";
+    let latestApiError = "";
 
     try {
       if (!isRelay) {
@@ -289,6 +343,9 @@ export default function ServerSetupPage() {
         latestDiagnostics = payload.diagnostics;
         setDiagnostics(payload.diagnostics);
       }
+      if (payload.error) {
+        latestApiError = payload.error;
+      }
 
       if (!response.ok || !payload.success || !payload.vlessConfigUrl) {
         throw new Error(
@@ -296,6 +353,7 @@ export default function ServerSetupPage() {
         );
       }
 
+      clearRememberedSetupFailure(serverId);
       setActiveStep(SETUP_STEPS.length);
       setVlessUrl(payload.vlessConfigUrl);
       await generateQr(payload.vlessConfigUrl);
@@ -308,10 +366,15 @@ export default function ServerSetupPage() {
         err instanceof Error ? err.message : s.setupFailed,
         s.errors
       );
+      // Prefer API diagnostics; if empty (early SSH fail), keep the error text visible in logs.
+      const diagForUi =
+        latestDiagnostics ||
+        latestApiError ||
+        (err instanceof Error ? err.message : "") ||
+        message;
       setError(message);
-      if (latestDiagnostics) {
-        setDiagnostics(latestDiagnostics);
-      }
+      setDiagnostics(diagForUi);
+      rememberSetupFailure(serverId, message, diagForUi);
       await loadServer();
     }
   }, [
@@ -516,13 +579,11 @@ export default function ServerSetupPage() {
 
           {phase === "error" && (
             <div className="space-y-3">
-              <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
-                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                <span className="whitespace-pre-wrap">
-                  {error || s.statusFailed}
-                </span>
-              </div>
-              <DiagnosticsPanel output={diagnostics} error={error} />
+              <DiagnosticsPanel
+                output={diagnostics}
+                error={error || s.statusFailed}
+                failed
+              />
               <Button
                 variant="outline"
                 onClick={() => void runSetup()}

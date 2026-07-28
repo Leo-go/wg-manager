@@ -17,7 +17,11 @@ export function mapSshError(error: unknown): Error {
   if (/All configured authentication methods failed/i.test(message)) {
     return new Error("SSH connection failed: invalid credentials");
   }
-  if (/Timed out while waiting for handshake|Timed out/i.test(message)) {
+  if (
+    /Timed out while waiting for handshake|Connection timed out|ETIMEDOUT|connect.*timed out|Timed out/i.test(
+      message
+    )
+  ) {
     return new Error("SSH connection failed: connection timed out");
   }
   if (/ECONNREFUSED/i.test(message)) {
@@ -74,7 +78,11 @@ export function extractUserFacingError(
     return "SSH user is not root and needs passwordless sudo (sudo -n). Use root, or configure NOPASSWD for that user.";
   }
 
-  if (/Timed out while waiting for handshake/i.test(output)) {
+  if (
+    /Timed out while waiting for handshake|Connection timed out|ETIMEDOUT|connect.*timed out/i.test(
+      output
+    )
+  ) {
     return "SSH connection failed: connection timed out";
   }
 
