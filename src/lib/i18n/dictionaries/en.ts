@@ -281,6 +281,36 @@ export const en: Dictionary = {
     serverNotFound: "Server not found",
     setupFailed: "Setup failed",
     diagnosticsTitle: "Installation diagnostics",
+    diagnosticsDetectedIssue: "Likely issue",
+    diagnosticsNextSteps: "What to do next",
+    diagnosticsSignals: "Signals from logs",
+    diagnosticsRawOutput: "Raw installer logs",
+    diagnosticsHealthy: "Looks healthy",
+    diagnosticsNeedsAttention: "Needs attention",
+    diagIssueSshAuth: "SSH authentication problem",
+    diagIssueSshNetwork: "SSH reachability problem",
+    diagIssueSshKey: "Platform SSH key problem",
+    diagIssuePortInUse: "Port conflict on the VPS",
+    diagIssueRelayDependency: "Relay dependency is not ready",
+    diagIssueInstallScript: "Remote install script failed",
+    diagIssueParseConfig:
+      "The server appears configured, but the app could not read the generated config",
+    diagIssueUnknown: "The exact cause could not be determined automatically",
+    diagStepCheckCredentials:
+      "Check the SSH username, password, or private key configured for this server.",
+    diagStepCheckIpPort:
+      "Check the server IP, SSH port, security groups, and whether port 22/your SSH port is reachable.",
+    diagStepCheckPublicKey:
+      "If you use SSH key mode, re-copy the platform public key to the VPS and make sure it is present in the correct user's authorized_keys.",
+    diagStepCheckPortConflict:
+      "Free the conflicting port or change the VLESS port in the server settings, then retry setup.",
+    diagStepCheckExitReady:
+      "Finish the main exit-server setup first, then retry the relay installation.",
+    diagStepRetrySetup: "After fixing the issue, retry the setup.",
+    diagStepTryAnotherSni:
+      "If SSH and installation succeed but connectivity is unstable afterwards, try a different SNI domain.",
+    diagStepReviewRawOutput:
+      "If the cause is still unclear, inspect the raw logs below and look for the first explicit error.",
     directUrl: "Direct VLESS URL (exit)",
     relayUrl: "Relay VLESS URL (via this RU hop)",
     reRun: "Re-run setup",

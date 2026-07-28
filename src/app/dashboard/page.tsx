@@ -6,7 +6,9 @@ export default async function DashboardPage() {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("servers")
-    .select("*")
+    .select(
+      "id, name, ip_address, ssh_port, ssh_username, status, installation_status, created_at, role, exit_server_id, relay_vless_config_url"
+    )
     .order("created_at", { ascending: false });
 
   if (error) {

@@ -522,7 +522,7 @@ export default function ServerSetupPage() {
                   {error || s.statusFailed}
                 </span>
               </div>
-              <DiagnosticsPanel output={diagnostics} />
+              <DiagnosticsPanel output={diagnostics} error={error} />
               <Button
                 variant="outline"
                 onClick={() => void runSetup()}
@@ -581,7 +581,7 @@ export default function ServerSetupPage() {
               </div>
             </div>
 
-            <DiagnosticsPanel output={diagnostics} />
+            <DiagnosticsPanel output={diagnostics} error={error} />
 
             <div className="flex flex-wrap gap-2">
               <Button asChild>

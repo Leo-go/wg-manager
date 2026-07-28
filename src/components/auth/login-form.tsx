@@ -47,7 +47,6 @@ export function LoginForm() {
       if (signInError) throw signInError;
 
       router.push(nextPath.startsWith("/") ? nextPath : "/dashboard");
-      router.refresh();
     } catch (err) {
       const messageText =
         err instanceof Error ? err.message : t.auth.authFailed;

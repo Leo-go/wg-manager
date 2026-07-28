@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { CornerDownRight, Pencil, Server as ServerIcon, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { InstallationStatus, Server } from "@/lib/supabase/types";
@@ -189,7 +188,6 @@ export function DashboardPageClient({
   const [buyVpsOpen, setBuyVpsOpen] = useState(false);
   const [editingServer, setEditingServer] = useState<Server | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const router = useRouter();
   const showApiBuy = isTimewebApiBuyEnabled();
 
   const serverTree = useMemo(() => buildServerTree(servers), [servers]);
@@ -230,8 +228,9 @@ export function DashboardPageClient({
   );
 
   const handleCreated = useCallback(() => {
-    router.refresh();
-  }, [router]);
+    // The add dialog navigates straight to setup page after insert,
+    // so refreshing the dashboard first only adds a redundant round-trip.
+  }, []);
 
   return (
     <div className="p-8">
@@ -330,7 +329,6 @@ export function DashboardPageClient({
           setServers((prev) =>
             prev.map((s) => (s.id === updated.id ? { ...s, ...updated } : s))
           );
-          router.refresh();
         }}
       />
       {showApiBuy && (

@@ -280,6 +280,35 @@ export const ru: Dictionary = {
     serverNotFound: "Сервер не найден",
     setupFailed: "Установка не удалась",
     diagnosticsTitle: "Диагностика установки",
+    diagnosticsDetectedIssue: "Что похоже сломалось",
+    diagnosticsNextSteps: "Что делать дальше",
+    diagnosticsSignals: "Сигналы из логов",
+    diagnosticsRawOutput: "Сырые логи установки",
+    diagnosticsHealthy: "Похоже, всё в порядке",
+    diagnosticsNeedsAttention: "Нужно внимание",
+    diagIssueSshAuth: "Проблема с SSH-аутентификацией",
+    diagIssueSshNetwork: "Проблема с доступностью сервера по SSH",
+    diagIssueSshKey: "Проблема с SSH-ключом платформы",
+    diagIssuePortInUse: "Конфликт порта на VPS",
+    diagIssueRelayDependency: "Не готова зависимость для relay",
+    diagIssueInstallScript: "Ошибка во время установки на сервере",
+    diagIssueParseConfig: "Конфиг создался, но приложение не смогло его прочитать",
+    diagIssueUnknown: "Точная причина не определилась автоматически",
+    diagStepCheckCredentials:
+      "Проверьте SSH-логин, пароль или приватный ключ для этого сервера.",
+    diagStepCheckIpPort:
+      "Проверьте IP-адрес сервера, SSH-порт, security groups и доступность порта 22/вашего SSH-порта.",
+    diagStepCheckPublicKey:
+      "Если используете режим SSH key, заново вставьте публичный ключ платформы на VPS и убедитесь, что он попал в authorized_keys нужного пользователя.",
+    diagStepCheckPortConflict:
+      "Освободите занятый порт или смените VLESS-порт в настройках сервера и повторите установку.",
+    diagStepCheckExitReady:
+      "Сначала завершите установку основного exit-сервера, затем заново запускайте relay.",
+    diagStepRetrySetup: "После исправления проблемы повторите установку.",
+    diagStepTryAnotherSni:
+      "Если SSH и установка проходят, но подключение потом нестабильно, попробуйте другой SNI-домен.",
+    diagStepReviewRawOutput:
+      "Если причина всё ещё не ясна, откройте сырые логи ниже и ищите первую явную ошибку.",
     directUrl: "Прямой VLESS",
     relayUrl: "VLESS через RU-релей",
     reRun: "Переустановить",
