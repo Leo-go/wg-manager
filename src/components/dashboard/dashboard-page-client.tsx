@@ -1,15 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { CornerDownRight, Pencil, Server as ServerIcon, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { InstallationStatus, Server } from "@/lib/supabase/types";
 import { buildServerTree } from "@/lib/servers/build-server-tree";
-import AddServerDialog from "@/components/AddServerDialog";
-import { BuyVpsDialog } from "@/components/servers/buy-vps-dialog";
-import { EditServerDialog } from "@/components/servers/edit-server-dialog";
-import { GetStartedPartnerDialog } from "@/components/servers/get-started-partner-dialog";
 import { Button } from "@/components/ui/button";
 import { isRuRelayEnabled } from "@/lib/constants/features";
 import { isTimewebApiBuyEnabled } from "@/lib/constants/partner";
@@ -24,6 +21,30 @@ import {
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n/provider";
 import type { Dictionary } from "@/lib/i18n/types";
+
+const AddServerDialog = dynamic(
+  () => import("@/components/AddServerDialog"),
+  { ssr: false }
+);
+const BuyVpsDialog = dynamic(
+  () =>
+    import("@/components/servers/buy-vps-dialog").then((m) => m.BuyVpsDialog),
+  { ssr: false }
+);
+const EditServerDialog = dynamic(
+  () =>
+    import("@/components/servers/edit-server-dialog").then(
+      (m) => m.EditServerDialog
+    ),
+  { ssr: false }
+);
+const GetStartedPartnerDialog = dynamic(
+  () =>
+    import("@/components/servers/get-started-partner-dialog").then(
+      (m) => m.GetStartedPartnerDialog
+    ),
+  { ssr: false }
+);
 
 function installationLabel(
   status: InstallationStatus | null | undefined,
@@ -75,6 +96,7 @@ function ServerTableRow({
   server,
   depth,
   parentName,
+  hasRelayChildren,
   d,
   deletingId,
   onEdit,
@@ -83,6 +105,7 @@ function ServerTableRow({
   server: Server;
   depth: number;
   parentName?: string;
+  hasRelayChildren?: boolean;
   d: Dictionary["dashboard"];
   deletingId: string | null;
   onEdit: (server: Server) => void;
@@ -111,6 +134,11 @@ function ServerTableRow({
           {isRuRelayEnabled() && isRelay && (
             <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-sky-400">
               {d.badgeRelay}
+            </span>
+          )}
+          {isRuRelayEnabled() && !isRelay && hasRelayChildren && (
+            <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-emerald-400">
+              {d.badgePlusRelay}
             </span>
           )}
         </div>
@@ -287,6 +315,7 @@ export function DashboardPageClient({
                   <ServerTableRow
                     server={server}
                     depth={0}
+                    hasRelayChildren={children.length > 0}
                     d={d}
                     deletingId={deletingId}
                     onEdit={setEditingServer}

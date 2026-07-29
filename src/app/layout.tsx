@@ -6,7 +6,7 @@ import { isLocale } from "@/lib/i18n";
 import { DEFAULT_LOCALE, LOCALE_COOKIE } from "@/lib/i18n/types";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({ subsets: ["latin", "cyrillic"] });
 
 export const metadata: Metadata = {
   title: {

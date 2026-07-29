@@ -124,6 +124,8 @@ export async function runRemoteBashScript(opts: {
   args?: string[];
   username?: string | null;
   readyTimeoutMs?: number;
+  onConnected?: () => void;
+  onOutput?: (chunk: string) => void;
 }): Promise<RemoteExecResult> {
   const ssh = new SSHClient();
   const username = normalizeSshUsername(opts.username);
@@ -161,6 +163,8 @@ export async function runRemoteBashScript(opts: {
     throw mapSshError(sshError);
   }
 
+  opts.onConnected?.();
+
   try {
     const execResult = await new Promise<{
       stdout: string;
@@ -173,15 +177,23 @@ export async function runRemoteBashScript(opts: {
         let stdout = "";
         let stderr = "";
 
+        const push = (text: string) => {
+          if (text) opts.onOutput?.(text);
+        };
+
         stream
           .on("close", (code: number | null) => {
             resolve({ stdout, stderr, code: code ?? 0 });
           })
           .on("data", (data: Buffer) => {
-            stdout += data.toString();
+            const text = data.toString();
+            stdout += text;
+            push(text);
           });
         stream.stderr.on("data", (data: Buffer) => {
-          stderr += data.toString();
+          const text = data.toString();
+          stderr += text;
+          push(text);
         });
       });
     });

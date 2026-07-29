@@ -1,8 +1,8 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import { Check, Copy, Loader2 } from "lucide-react";
 import { getPlatformSshPublicKey } from "@/lib/constants/partner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,27 +36,38 @@ export function AddRuRelayDialog({
   const router = useRouter();
   const { t } = useI18n();
   const r = t.relay;
+  const a = t.addServer;
+  const platformKey = getPlatformSshPublicKey();
+  const platformKeyConfigured = Boolean(platformKey);
+
   const [name, setName] = useState("");
   const [ipAddress, setIpAddress] = useState("");
   const [sshPort, setSshPort] = useState("22");
   const [sshUsername, setSshUsername] = useState("root");
-  const [authMode, setAuthMode] = useState<AuthMode>("ssh_key");
+  const [authMode, setAuthMode] = useState<AuthMode>(
+    platformKeyConfigured ? "ssh_key" : "password"
+  );
   const [sshPassword, setSshPassword] = useState("");
   const [relaySni, setRelaySni] = useState("www.gosuslugi.ru");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [copiedKey, setCopiedKey] = useState(false);
 
-  const platformKeyConfigured = Boolean(getPlatformSshPublicKey());
+  useEffect(() => {
+    if (!open) return;
+    setAuthMode(platformKeyConfigured ? "ssh_key" : "password");
+  }, [open, platformKeyConfigured]);
 
   const resetForm = () => {
     setName("");
     setIpAddress("");
     setSshPort("22");
     setSshUsername("root");
-    setAuthMode("ssh_key");
+    setAuthMode(platformKeyConfigured ? "ssh_key" : "password");
     setSshPassword("");
     setRelaySni("www.gosuslugi.ru");
     setError("");
+    setCopiedKey(false);
   };
 
   const handleOpenChange = (nextOpen: boolean) => {
@@ -66,19 +77,35 @@ export function AddRuRelayDialog({
     }
   };
 
+  const handleCopyKey = async () => {
+    if (!platformKey) return;
+    await navigator.clipboard.writeText(platformKey);
+    setCopiedKey(true);
+    setTimeout(() => setCopiedKey(false), 2000);
+  };
+
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError("");
     setLoading(true);
 
     try {
+      if (authMode === "password" && !sshPassword.trim()) {
+        throw new Error(a.errors.passwordRequired);
+      }
+      if (authMode === "ssh_key" && !platformKeyConfigured) {
+        throw new Error(a.errors.platformKeyMissing);
+      }
+
       const response = await fetch(
         `/api/servers/${exitServerId}/relay/setup`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            name: name.trim() || r.namePlaceholder.replace("{name}", exitServerName),
+            name:
+              name.trim() ||
+              r.namePlaceholder.replace("{name}", exitServerName),
             ip_address: ipAddress.trim(),
             ssh_port: Number.parseInt(sshPort, 10) || 22,
             ssh_username: sshUsername.trim() || "root",
@@ -191,16 +218,42 @@ export function AddRuRelayDialog({
             </div>
             <p className="text-xs text-muted-foreground">{r.authHint}</p>
             {authMode === "ssh_key" && (
-              <p className="text-xs text-muted-foreground">
-                {t.addServer.helpNoPassword}
-              </p>
+              <div className="space-y-2 rounded-md border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+                <p>{a.helpNoPassword}</p>
+                {platformKey && (
+                  <div className="space-y-2">
+                    <code className="block max-h-20 overflow-auto whitespace-pre-wrap break-all rounded border border-border bg-background p-2 text-[11px] text-foreground">
+                      {platformKey}
+                    </code>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => void handleCopyKey()}
+                      disabled={loading}
+                    >
+                      {copiedKey ? (
+                        <>
+                          <Check className="mr-2 h-3.5 w-3.5" />
+                          {t.common.copied}
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="mr-2 h-3.5 w-3.5" />
+                          {t.common.copy}
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                )}
+              </div>
             )}
             {authMode === "password" && (
               <Input
                 type="password"
                 value={sshPassword}
                 onChange={(e) => setSshPassword(e.target.value)}
-                placeholder={t.addServer.rootPassword}
+                placeholder={a.rootPassword}
                 required
                 disabled={loading}
               />

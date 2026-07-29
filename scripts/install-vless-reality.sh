@@ -17,6 +17,8 @@ NC='\033[0m'
 
 echo -e "${GREEN}=== VLESS Reality Auto-Installer ===${NC}"
 echo ""
+# Machine-readable progress for the control-panel checklist (WG_STEP=0..5)
+echo "WG_STEP=1"
 
 if [ "$EUID" -ne 0 ]; then
   echo -e "${RED}Please run as root${NC}"
@@ -28,6 +30,7 @@ systemctl stop xray 2>/dev/null || true
 pkill -f xray || true
 sleep 2
 
+echo "WG_STEP=2"
 echo -e "${YELLOW}[0/6] Syncing system time (critical for Reality)...${NC}"
 timedatectl set-ntp true 2>/dev/null || true
 apt-get install -y -qq chrony 2>/dev/null || apt-get install -y -qq ntpsec-ntpdate 2>/dev/null || true
@@ -42,6 +45,7 @@ echo -e "${YELLOW}[2/6] Installing dependencies...${NC}"
 apt-get install -y -qq curl unzip openssl ca-certificates 2>/dev/null
 
 # Pin known-good core (26.7.x broke Reality). Skip reinstall if already present.
+echo "WG_STEP=3"
 echo -e "${YELLOW}[3/6] Ensuring Xray-core v26.3.27...${NC}"
 XRAY_TARGET="26.3.27"
 NEED_INSTALL=1
@@ -60,6 +64,7 @@ fi
 export PATH="/usr/local/bin:$PATH"
 xray version 2>/dev/null | awk 'NR==1{print; exit}' || true
 
+echo "WG_STEP=4"
 echo -e "${YELLOW}[4/6] Generating UUID...${NC}"
 VLESS_UUID=$(xray uuid)
 echo "VLESS_UUID=$VLESS_UUID"
@@ -149,6 +154,7 @@ if ss -tulpn | grep -q ":${VLESS_PORT} "; then
   fi
 fi
 
+echo "WG_STEP=5"
 echo -e "${YELLOW}[6/6] Writing Xray config...${NC}"
 mkdir -p /usr/local/etc/xray
 cat > /usr/local/etc/xray/config.json << EOF

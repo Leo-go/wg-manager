@@ -32,15 +32,18 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 echo "=== VLESS Manager RU Relay Installer ==="
+echo "WG_STEP=1"
 
 systemctl stop xray 2>/dev/null || true
 pkill -f xray 2>/dev/null || true
 sleep 1
 
+echo "WG_STEP=2"
 timedatectl set-ntp true 2>/dev/null || true
 apt-get update -qq 2>/dev/null || true
 apt-get install -y -qq curl unzip openssl ca-certificates 2>/dev/null
 
+echo "WG_STEP=3"
 XRAY_TARGET="26.3.27"
 NEED_INSTALL=1
 if command -v xray >/dev/null 2>&1; then
@@ -55,6 +58,7 @@ if [ "$NEED_INSTALL" = "1" ]; then
 fi
 export PATH="/usr/local/bin:$PATH"
 
+echo "WG_STEP=4"
 CLIENT_UUID=$(xray uuid)
 X25519_OUTPUT=$(xray x25519 2>&1)
 PRIVATE_KEY=$(printf '%s\n' "$X25519_OUTPUT" | grep -iE 'Private' | head -n 1 | awk '{print $NF}' | tr -d '\r')
@@ -69,6 +73,7 @@ if [ -n "$PRIVATE_KEY" ]; then
 fi
 SHORT_ID=$(openssl rand -hex 4)
 
+echo "WG_STEP=5"
 mkdir -p /usr/local/etc/xray
 cat > /usr/local/etc/xray/config.json << EOF
 {

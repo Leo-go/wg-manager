@@ -124,6 +124,8 @@ export async function POST(
       exit_server_id: exitId,
       installation_status: "pending" as const,
       status: "inactive" as const,
+      // Replace must not keep a previous successful VLESS — otherwise UI opens as "ready".
+      vless_config_url: null,
       updated_at: new Date().toISOString(),
     };
 
@@ -141,6 +143,17 @@ export async function POST(
           { status: 500 }
         );
       }
+
+      // Clear stale via-relay URL on the exit until reinstall succeeds.
+      await supabase
+        .from("servers")
+        .update({
+          relay_vless_config_url: null,
+          relay_status: "pending",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", exitId)
+        .eq("user_id", user.id);
 
       return NextResponse.json({
         success: true,

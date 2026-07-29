@@ -1,11 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Client as SSHClient } from "ssh2";
 import { z } from "zod";
 import * as fs from "fs";
 import * as path from "path";
 import { createClient } from "@/lib/supabase/server";
 import { resolveSshAuth } from "@/lib/ssh/auth";
-import { normalizeSshUsername } from "@/lib/ssh/run-remote";
+import {
+  extractUserFacingError,
+  mapSshError,
+  runRemoteBashScript,
+} from "@/lib/ssh/run-remote";
+import {
+  encodeSetupStreamEvent,
+  parseProgressFromChunk,
+  type SetupStepIndex,
+  type SetupStreamEvent,
+} from "@/lib/setup/progress";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -26,10 +35,6 @@ const serverCredentialsSchema = z.object({
   vless_port: z.number().int().min(1).max(65535).nullable().optional(),
 });
 
-function buildFullOutput(stdout: string, stderr: string): string {
-  return [stdout.trim(), stderr.trim()].filter(Boolean).join("\n");
-}
-
 function stripAnsi(text: string): string {
   return text.replace(/\u001b\[[0-9;]*m/g, "");
 }
@@ -44,87 +49,32 @@ function extractVlessUrl(output: string): string | null {
   return fallback?.[0]?.trim() ?? null;
 }
 
-function extractUserFacingError(output: string, fallback: string): string {
-  const portInUse = output.match(
-    /ERROR:\s*Port\s+(\d+)\s+is already in use\.?\s*Please stop the conflicting process\.?/i
-  );
-  if (portInUse) {
-    return `Script execution failed: port ${portInUse[1]} is already in use`;
-  }
-
-  const bindFailed = output.match(
-    /ERROR:\s*Xray failed to bind to port\s+(\d+)\.?/i
-  );
-  if (bindFailed) {
-    return `Script execution failed: port ${bindFailed[1]} is already in use`;
-  }
-
-  if (/address already in use/i.test(output)) {
-    const portFromListen = output.match(/failed to listen.*?(\d{2,5})/i);
-    if (portFromListen) {
-      return `Script execution failed: port ${portFromListen[1]} is already in use`;
-    }
-    return "Script execution failed: port is already in use";
-  }
-
-  if (/All configured authentication methods failed/i.test(output)) {
-    return "SSH connection failed: invalid credentials";
-  }
-
-  if (
-    /Timed out while waiting for handshake|Connection timed out|ETIMEDOUT|connect.*timed out/i.test(
-      output
-    )
-  ) {
-    return "SSH connection failed: connection timed out";
-  }
-
-  if (/ECONNREFUSED/i.test(output)) {
-    return "SSH connection failed: connection refused (check IP and SSH port)";
-  }
-
-  if (/ENOTFOUND|getaddrinfo/i.test(output)) {
-    return "SSH connection failed: host not found (check ip_address)";
-  }
-
-  return fallback;
+function wantsStream(request: NextRequest): boolean {
+  const accept = request.headers.get("accept") ?? "";
+  if (accept.includes("application/x-ndjson")) return true;
+  return request.nextUrl.searchParams.get("stream") === "1";
 }
 
-function mapSshError(error: unknown): Error {
-  const message = error instanceof Error ? error.message : String(error);
-  if (/All configured authentication methods failed/i.test(message)) {
-    return new Error("SSH connection failed: invalid credentials");
-  }
-  if (
-    /Timed out while waiting for handshake|Connection timed out|ETIMEDOUT|connect.*timed out|Timed out/i.test(
-      message
-    )
-  ) {
-    return new Error("SSH connection failed: connection timed out");
-  }
-  if (/ECONNREFUSED/i.test(message)) {
-    return new Error(
-      "SSH connection failed: connection refused (check IP and SSH port)"
-    );
-  }
-  if (/ENOTFOUND|getaddrinfo/i.test(message)) {
-    return new Error("SSH connection failed: host not found (check ip_address)");
-  }
-  if (/Cannot parse privateKey|Encrypted private OpenSSH key|passphrase/i.test(message)) {
-    return new Error(
-      "SSH private key is encrypted or invalid. Use a key created with an empty passphrase (`ssh-keygen -N \"\"`), or set WG_SSH_PRIVATE_KEY_PASSPHRASE to match the key password."
-    );
-  }
-  return new Error(`SSH connection failed: ${message}`);
+function ndjsonResponse(stream: ReadableStream<Uint8Array>) {
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "application/x-ndjson; charset=utf-8",
+      "Cache-Control": "no-store",
+    },
+  });
 }
 
 export async function POST(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   let serverId = "";
   let fullOutput = "";
   const supabase = await createClient();
+  const streamMode = wantsStream(request);
+
+  const emitJsonError = (status: number, body: Record<string, unknown>) =>
+    NextResponse.json(body, { status });
 
   try {
     const {
@@ -134,10 +84,9 @@ export async function POST(
 
     if (authError || !user) {
       console.error("[setup] Unauthorized:", authError?.message);
-      return NextResponse.json(
-        { error: "Unauthorized — sign in again and retry setup" },
-        { status: 401 }
-      );
+      return emitJsonError(401, {
+        error: "Unauthorized — sign in again and retry setup",
+      });
     }
 
     const { id } = await params;
@@ -146,7 +95,7 @@ export async function POST(
       const message =
         idResult.error.issues[0]?.message ?? "Invalid server id";
       console.error("[setup] Validation failed (serverId):", message);
-      return NextResponse.json({ error: message }, { status: 400 });
+      return emitJsonError(400, { error: message });
     }
     serverId = idResult.data;
 
@@ -159,24 +108,18 @@ export async function POST(
 
     if (fetchError) {
       console.error("[setup] Server fetch error:", serverId, fetchError.message);
-      return NextResponse.json(
-        {
-          error: "Failed to load server from database",
-          details: fetchError.message,
-        },
-        { status: 500 }
-      );
+      return emitJsonError(500, {
+        error: "Failed to load server from database",
+        details: fetchError.message,
+      });
     }
 
     if (!serverRow) {
       console.error("[setup] Server not found for user:", serverId, user.id);
-      return NextResponse.json(
-        {
-          error:
-            "Server not found (or you do not own it). Refresh the dashboard and try again.",
-        },
-        { status: 404 }
-      );
+      return emitJsonError(404, {
+        error:
+          "Server not found (or you do not own it). Refresh the dashboard and try again.",
+      });
     }
 
     const credentials = serverCredentialsSchema.safeParse({
@@ -195,12 +138,11 @@ export async function POST(
         credentials.error.issues[0]?.message ??
         "Server is missing required SSH fields";
       console.error("[setup] Validation failed (credentials):", message);
-      return NextResponse.json({ error: message }, { status: 400 });
+      return emitJsonError(400, { error: message });
     }
 
     const server = credentials.data;
     const sshPort = server.ssh_port || 22;
-    const sshUsername = normalizeSshUsername(server.ssh_username);
     const sni = server.sni_domain || "www.cloudflare.com";
     const vlessPort = server.vless_port || 443;
 
@@ -213,7 +155,7 @@ export async function POST(
     } catch (authErr) {
       const message =
         authErr instanceof Error ? authErr.message : "SSH auth missing";
-      return NextResponse.json({ error: message }, { status: 400 });
+      return emitJsonError(400, { error: message });
     }
 
     await supabase
@@ -233,107 +175,133 @@ export async function POST(
     }
     const scriptContent = fs.readFileSync(scriptPath, "utf-8");
 
-    const ssh = new SSHClient();
+    const runInstall = async (
+      onEvent?: (event: SetupStreamEvent) => void
+    ): Promise<{ vlessConfigUrl: string; diagnostics: string }> => {
+      let highestStep: SetupStepIndex = 0;
+      const pushStep = (step: SetupStepIndex) => {
+        if (step < highestStep) return;
+        highestStep = step;
+        onEvent?.({ type: "step", step });
+      };
 
-    console.log(
-      `Connecting to ${sshUsername}@${server.ip_address}:${sshPort} via ${sshAuth.type}...`
-    );
-    try {
-      await new Promise<void>((resolve, reject) => {
-        ssh
-          .on("ready", () => resolve())
-          .on("error", (err) => reject(err))
-          .connect({
-            host: server.ip_address,
-            port: sshPort,
-            username: sshUsername,
-            readyTimeout: 30_000,
-            ...(sshAuth.type === "privateKey"
-              ? {
-                  privateKey: sshAuth.privateKey,
-                  ...(sshAuth.passphrase
-                    ? { passphrase: sshAuth.passphrase }
-                    : {}),
-                }
-              : { password: sshAuth.password }),
-          });
-      });
-    } catch (sshError) {
-      console.error(
-        `SSH connection failed: ${
-          sshError instanceof Error ? sshError.message : String(sshError)
-        }`
+      pushStep(0);
+
+      console.log(
+        `Connecting to ${server.ip_address}:${sshPort} via ${sshAuth.type}...`
       );
-      throw mapSshError(sshError);
-    }
-    console.log("SSH connected successfully");
 
-    const escapedScript = scriptContent.replace(/'/g, "'\\''");
-    const bashRunner =
-      sshUsername === "root"
-        ? "bash --noprofile --norc -s --"
-        : "sudo -n bash --noprofile --norc -s --";
-    const command = `export DEBIAN_FRONTEND=noninteractive TERM=xterm CURL_HOME=/tmp; echo '${escapedScript}' | ${bashRunner} ${sni} ${vlessPort} ${server.ip_address}`;
-
-    console.log("Running installation script...");
-    const execResult = await new Promise<{
-      stdout: string;
-      stderr: string;
-      code: number;
-    }>((resolve, reject) => {
-      ssh.exec(command, { pty: false }, (err, stream) => {
-        if (err) return reject(err);
-
-        let stdout = "";
-        let stderr = "";
-
-        stream
-          .on("close", (code: number | null) => {
-            resolve({ stdout, stderr, code: code ?? 0 });
-          })
-          .on("data", (data: Buffer) => {
-            stdout += data.toString();
-          });
-        stream.stderr.on("data", (data: Buffer) => {
-          stderr += data.toString();
+      let execResult;
+      try {
+        execResult = await runRemoteBashScript({
+          host: server.ip_address,
+          port: sshPort,
+          username: server.ssh_username,
+          auth: sshAuth,
+          scriptContent,
+          args: [sni, String(vlessPort), server.ip_address],
+          onConnected: () => {
+            console.log("SSH connected successfully");
+            pushStep(1);
+          },
+          onOutput: (chunk) => {
+            parseProgressFromChunk(chunk, pushStep);
+          },
         });
+      } catch (sshError) {
+        console.error(
+          `SSH connection failed: ${
+            sshError instanceof Error ? sshError.message : String(sshError)
+          }`
+        );
+        throw mapSshError(sshError);
+      }
+
+      fullOutput = execResult.fullOutput;
+      console.log(`Script completed with code ${execResult.code}`);
+
+      if (execResult.code !== 0) {
+        const raw = `Script execution failed (exit code ${execResult.code})`;
+        throw new Error(extractUserFacingError(fullOutput, raw));
+      }
+
+      const vlessConfigUrl = extractVlessUrl(fullOutput);
+      if (!vlessConfigUrl) {
+        console.error("Failed to parse VLESS config URL from script output");
+        throw new Error(
+          "Script execution failed: could not parse VLESS config URL from installer output"
+        );
+      }
+
+      pushStep(5);
+      console.log("Installation script finished successfully; VLESS URL parsed");
+
+      await supabase
+        .from("servers")
+        .update({
+          vless_config_url: vlessConfigUrl,
+          installation_status: "completed",
+          status: "active",
+          last_check: new Date().toISOString(),
+        })
+        .eq("id", serverId);
+
+      return { vlessConfigUrl, diagnostics: fullOutput };
+    };
+
+    if (streamMode) {
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream<Uint8Array>({
+        async start(controller) {
+          const send = (event: SetupStreamEvent) => {
+            controller.enqueue(encoder.encode(encodeSetupStreamEvent(event)));
+          };
+          try {
+            const result = await runInstall(send);
+            send({
+              type: "done",
+              vlessConfigUrl: result.vlessConfigUrl,
+              diagnostics: result.diagnostics,
+              message: "VPN successfully configured!",
+            });
+          } catch (error) {
+            const message =
+              error instanceof Error
+                ? error.message
+                : "Setup failed unexpectedly";
+            console.error("Setup error:", message);
+            if (serverId) {
+              await supabase
+                .from("servers")
+                .update({
+                  installation_status: "error",
+                  status: "error",
+                })
+                .eq("id", serverId);
+            }
+            const friendly = extractUserFacingError(
+              `${fullOutput}\n${message}`,
+              message
+            );
+            send({
+              type: "error",
+              error: friendly,
+              diagnostics:
+                [fullOutput, friendly].filter(Boolean).join("\n") || undefined,
+            });
+          } finally {
+            controller.close();
+          }
+        },
       });
-    });
-
-    ssh.end();
-
-    fullOutput = buildFullOutput(execResult.stdout, execResult.stderr);
-    console.log(`Script completed with code ${execResult.code}`);
-
-    if (execResult.code !== 0) {
-      const raw = `Script execution failed (exit code ${execResult.code})`;
-      throw new Error(extractUserFacingError(fullOutput, raw));
+      return ndjsonResponse(stream);
     }
 
-    const vlessConfigUrl = extractVlessUrl(fullOutput);
-    if (!vlessConfigUrl) {
-      console.error("Failed to parse VLESS config URL from script output");
-      throw new Error(
-        "Script execution failed: could not parse VLESS config URL from installer output"
-      );
-    }
-
-    console.log("Installation script finished successfully; VLESS URL parsed");
-
-    await supabase
-      .from("servers")
-      .update({
-        vless_config_url: vlessConfigUrl,
-        installation_status: "completed",
-        status: "active",
-        last_check: new Date().toISOString(),
-      })
-      .eq("id", serverId);
-
+    const result = await runInstall();
     return NextResponse.json({
       success: true,
-      vlessConfigUrl,
-      diagnostics: fullOutput,
+      vlessConfigUrl: result.vlessConfigUrl,
+      diagnostics: result.diagnostics,
       message: "VPN successfully configured!",
     });
   } catch (error) {
@@ -363,8 +331,8 @@ export async function POST(
     return NextResponse.json(
       {
         error: friendly,
-        // Always return something diagnosable — early SSH failures leave fullOutput empty.
-        diagnostics: [fullOutput, friendly].filter(Boolean).join("\n") || undefined,
+        diagnostics:
+          [fullOutput, friendly].filter(Boolean).join("\n") || undefined,
       },
       { status }
     );

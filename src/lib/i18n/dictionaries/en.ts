@@ -269,12 +269,20 @@ export const en: Dictionary = {
     installation: "Installation",
     installationHint: "This usually takes a few minutes. Keep this page open.",
     setupVpn: "Setup VPN",
+    setupRelay: "Install RU Relay",
     installing: "Installing on the remote server...",
+    installingStuck:
+      "A previous install looks stuck (the page was refreshed). You can retry.",
     retry: "Retry setup",
     readyTitle: "VPN is ready",
     readyHint: "Scan the QR code or copy the VLESS URL into your client app.",
+    readyTitleRelay: "RU Relay is ready",
+    readyHintRelay:
+      "Scan the QR code or copy the VLESS URL — the client connects via the Russian hop.",
     sniTip:
       "Using SNI: {sni}. If connection fails, try changing the SNI domain above and re-running setup.",
+    relaySniTip:
+      "Relay SNI: {sni}. To change the mask, replace the RU Relay and set another SNI in the dialog.",
     qrAlt: "VLESS QR code",
     relayQrAlt: "RU relay VLESS QR code",
     previousFailed: "Previous setup failed. You can retry installation.",
@@ -315,12 +323,15 @@ export const en: Dictionary = {
     relayUrl: "Relay VLESS URL (via this RU hop)",
     reRun: "Re-run setup",
     backServers: "Back to servers",
-    relayCardTitle: "RU Relay (v2 Layer 1)",
+    relayCardTitle: "RU Relay — Russian hop",
     relayCardHint:
       "Optional Russian hop: traffic looks like a local site, then exits abroad through this VPS.",
     addRelay: "Add RU Relay",
     openRelay: "Open relay config",
+    openRelaySetup: "Open relay setup",
     replaceRelay: "Replace / reinstall RU relay",
+    replaceRelayHint:
+      "Adding again replaces the current RU VPS: the old config is cleared and you must reinstall.",
     viaRelay: "Via RU relay (use when direct is blocked)",
     statusReady: "Ready",
     statusInstalling: "Installing",
@@ -338,7 +349,7 @@ export const en: Dictionary = {
       portInUseGeneric:
         "Script execution failed: port is already in use. Stop the conflicting service on the VPS, then retry.",
       missingPassword:
-        "Cannot start setup: SSH password is missing. Edit or re-add the server with a password.",
+        "Cannot start setup: no SSH credentials. Edit the server and add a password, or add the platform public key on the VPS (SSH key mode).",
       missingIp: "Cannot start setup: server IP address is missing.",
       serverNotFound:
         "Server not found. It may have been deleted — return to the dashboard.",

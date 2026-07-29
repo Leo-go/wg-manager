@@ -190,11 +190,16 @@ export type Dictionary = {
     installation: string;
     installationHint: string;
     setupVpn: string;
+    setupRelay: string;
     installing: string;
+    installingStuck: string;
     retry: string;
     readyTitle: string;
     readyHint: string;
+    readyTitleRelay: string;
+    readyHintRelay: string;
     sniTip: string;
+    relaySniTip: string;
     qrAlt: string;
     relayQrAlt: string;
     previousFailed: string;
@@ -231,7 +236,9 @@ export type Dictionary = {
     relayCardHint: string;
     addRelay: string;
     openRelay: string;
+    openRelaySetup: string;
     replaceRelay: string;
+    replaceRelayHint: string;
     viaRelay: string;
     statusReady: string;
     statusInstalling: string;

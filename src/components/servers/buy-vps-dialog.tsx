@@ -129,9 +129,8 @@ export function BuyVpsDialog({ open, onClose }: BuyVpsDialogProps) {
     setActiveStep(0);
 
     try {
+      // Creating VPS at the provider
       setActiveStep(0);
-      await new Promise((r) => setTimeout(r, 400));
-      setActiveStep(1);
 
       const provisionRes = await fetch("/api/vps/provision", {
         method: "POST",
@@ -166,6 +165,9 @@ export function BuyVpsDialog({ open, onClose }: BuyVpsDialogProps) {
       setServerId(provisionPayload.serverId);
       setMockNote(Boolean(provisionPayload.mock));
 
+      // Boot / ready from provider response
+      setActiveStep(1);
+
       if (provisionPayload.mock && provisionPayload.vlessConfigUrl) {
         setActiveStep(3);
         setVlessUrl(provisionPayload.vlessConfigUrl);
@@ -174,6 +176,7 @@ export function BuyVpsDialog({ open, onClose }: BuyVpsDialogProps) {
         return;
       }
 
+      // VPN install
       setActiveStep(2);
       const setupRes = await fetch(
         `/api/servers/${provisionPayload.serverId}/setup`,
