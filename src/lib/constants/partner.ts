@@ -3,6 +3,11 @@ export const TIMEWEB_PARTNER_URL =
   process.env.NEXT_PUBLIC_TIMEWEB_PARTNER_URL?.trim() ||
   "https://timeweb.cloud/?i=144829";
 
+/** Optional partner URL for Timeweb Domains inside CDN onboarding. */
+export const TIMEWEB_DOMAINS_PARTNER_URL =
+  process.env.NEXT_PUBLIC_TIMEWEB_DOMAINS_PARTNER_URL?.trim() ||
+  "https://timeweb.com/ru/services/domains/";
+
 /** Hide Cloud API “buy on our balance” unless explicitly enabled */
 export function isTimewebApiBuyEnabled(): boolean {
   return process.env.NEXT_PUBLIC_ENABLE_TIMEWEB_API_BUY === "true";

@@ -42,6 +42,13 @@ export type Dictionary = {
     osTip: string;
     relayTitle: string;
     relayBody: string;
+    cdnTitle: string;
+    cdnBody: string;
+    cdnHowTitle: string;
+    cdnHowItems: string[];
+    cdnAccessTitle: string;
+    cdnAccessEnabled: string;
+    cdnAccessRestricted: string;
     whitelistTitle: string;
     whitelistBody: string;
     whitelistLinkLabel: string;
@@ -63,6 +70,7 @@ export type Dictionary = {
   };
   nav: {
     servers: string;
+    admin: string;
     info: string;
     about: string;
     logOut: string;
@@ -88,10 +96,31 @@ export type Dictionary = {
     setupVpn: string;
     badgeRelay: string;
     badgePlusRelay: string;
+    badgeCdn: string;
+    badgeCdnReady: string;
+    badgeCdnInstalling: string;
+    badgeCdnFailed: string;
+    badgeCdnPending: string;
     deleteConfirm: string;
     deleteFailed: string;
     addRelay: string;
     relayChildOf: string;
+    adminPanel: string;
+  };
+  admin: {
+    title: string;
+    subtitle: string;
+    email: string;
+    access: string;
+    enabled: string;
+    disabled: string;
+    updated: string;
+    enable: string;
+    disable: string;
+    loading: string;
+    failed: string;
+    empty: string;
+    back: string;
   };
   about: {
     pageTitle: string;

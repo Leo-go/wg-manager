@@ -1,15 +1,19 @@
-"use client";
+import { createClient } from "@/lib/supabase/server";
+import { canUseYandexCdnForUser } from "@/lib/features/yandex-cdn-access";
+import { InfoPageContent } from "@/components/dashboard/info-page-content";
 
-import { ProductInfoContent } from "@/components/marketing/product-info-content";
-import { useI18n } from "@/lib/i18n/provider";
-
-export default function DashboardInfoPage() {
-  const { t } = useI18n();
+export default async function DashboardInfoPage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const hasCdnAccess = user
+    ? await canUseYandexCdnForUser(supabase, user.id)
+    : false;
 
   return (
     <div className="p-8">
-      <h1 className="mb-8 text-3xl font-bold tracking-tight">{t.nav.info}</h1>
-      <ProductInfoContent />
+      <InfoPageContent hasCdnAccess={hasCdnAccess} />
     </div>
   );
 }

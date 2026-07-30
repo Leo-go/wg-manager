@@ -60,7 +60,7 @@ export function GetStartedPartnerDialog({
               <a
                 href={TIMEWEB_PARTNER_URL}
                 target="_blank"
-                rel="noopener noreferrer"
+                rel="noopener"
               >
                 <ExternalLink className="mr-2 h-4 w-4" />
                 {p.step1Link}

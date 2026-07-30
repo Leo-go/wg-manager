@@ -7,6 +7,7 @@ import { CornerDownRight, Pencil, Server as ServerIcon, Trash2 } from "lucide-re
 import { createClient } from "@/lib/supabase/client";
 import type { InstallationStatus, Server } from "@/lib/supabase/types";
 import { buildServerTree } from "@/lib/servers/build-server-tree";
+import { trackEvent } from "@/lib/analytics/events";
 import { Button } from "@/components/ui/button";
 import { isRuRelayEnabled } from "@/lib/constants/features";
 import { isTimewebApiBuyEnabled } from "@/lib/constants/partner";
@@ -92,11 +93,35 @@ function actionLabel(
   }
 }
 
+function cdnBadgeMeta(server: Server, d: Dictionary["dashboard"]) {
+  const status = server.cdn_status?.trim();
+  switch (status) {
+    case "ready":
+      return { label: d.badgeCdnReady, className: "bg-violet-500/15 text-violet-400" };
+    case "installing_exit":
+    case "installing_origin":
+      return {
+        label: d.badgeCdnInstalling,
+        className: "bg-amber-500/15 text-amber-400",
+      };
+    case "error":
+      return { label: d.badgeCdnFailed, className: "bg-red-500/15 text-red-400" };
+    case "pending":
+      return {
+        label: d.badgeCdnPending,
+        className: "bg-slate-500/15 text-slate-300",
+      };
+    default:
+      return null;
+  }
+}
+
 function ServerTableRow({
   server,
   depth,
   parentName,
   hasRelayChildren,
+  showCdnBadge,
   d,
   deletingId,
   onEdit,
@@ -106,12 +131,14 @@ function ServerTableRow({
   depth: number;
   parentName?: string;
   hasRelayChildren?: boolean;
+  showCdnBadge?: boolean;
   d: Dictionary["dashboard"];
   deletingId: string | null;
   onEdit: (server: Server) => void;
   onDelete: (server: Server) => void;
 }) {
   const isRelay = server.role === "relay";
+  const cdnBadge = !isRelay && showCdnBadge ? cdnBadgeMeta(server, d) : null;
 
   return (
     <TableRow className={depth > 0 ? "bg-muted/20" : undefined}>
@@ -139,6 +166,16 @@ function ServerTableRow({
           {isRuRelayEnabled() && !isRelay && hasRelayChildren && (
             <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-emerald-400">
               {d.badgePlusRelay}
+            </span>
+          )}
+          {cdnBadge && (
+            <span
+              className={cn(
+                "rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide",
+                cdnBadge.className
+              )}
+            >
+              {cdnBadge.label}
             </span>
           )}
         </div>
@@ -205,8 +242,12 @@ function ServerTableRow({
 
 export function DashboardPageClient({
   initialServers,
+  isAdmin,
+  hasCdnAccess,
 }: {
   initialServers: Server[];
+  isAdmin: boolean;
+  hasCdnAccess: boolean;
 }) {
   const { t } = useI18n();
   const d = t.dashboard;
@@ -265,7 +306,18 @@ export function DashboardPageClient({
       <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-3xl font-bold tracking-tight">{d.title}</h1>
         <div className="flex flex-wrap gap-2">
-          <Button variant="default" onClick={() => setPartnerOpen(true)}>
+          {isAdmin && (
+            <Button variant="ghost" onClick={() => (window.location.href = "/dashboard/admin")}>
+              {d.adminPanel}
+            </Button>
+          )}
+          <Button
+            variant="default"
+            onClick={() => {
+              trackEvent("partner_cta_opened", { location: "dashboard_header" });
+              setPartnerOpen(true);
+            }}
+          >
             {d.getVps}
           </Button>
           <Button variant="outline" onClick={() => setDialogOpen(true)}>
@@ -286,7 +338,14 @@ export function DashboardPageClient({
           </div>
           <p className="text-center text-muted-foreground">{d.empty}</p>
           <div className="mt-6 flex flex-wrap justify-center gap-2">
-            <Button onClick={() => setPartnerOpen(true)}>{d.getVps}</Button>
+            <Button
+              onClick={() => {
+                trackEvent("partner_cta_opened", { location: "dashboard_empty" });
+                setPartnerOpen(true);
+              }}
+            >
+              {d.getVps}
+            </Button>
             <Button variant="outline" onClick={() => setDialogOpen(true)}>
               {d.addServer}
             </Button>
@@ -316,6 +375,7 @@ export function DashboardPageClient({
                     server={server}
                     depth={0}
                     hasRelayChildren={children.length > 0}
+                    showCdnBadge={hasCdnAccess}
                     d={d}
                     deletingId={deletingId}
                     onEdit={setEditingServer}
@@ -327,6 +387,7 @@ export function DashboardPageClient({
                       server={child}
                       depth={1}
                       parentName={server.name}
+                      showCdnBadge={hasCdnAccess}
                       d={d}
                       deletingId={deletingId}
                       onEdit={setEditingServer}

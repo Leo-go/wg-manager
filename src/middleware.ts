@@ -28,6 +28,7 @@ export const config = {
     "/dashboard/:path*",
     // Keep auth cookies fresh for setup API (uses user session, not service role)
     "/api/servers/:path*",
+    "/api/admin/:path*",
     "/api/vps/provision",
   ],
 };

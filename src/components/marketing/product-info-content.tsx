@@ -2,7 +2,11 @@
 
 import { useI18n } from "@/lib/i18n/provider";
 
-export function ProductInfoContent() {
+export function ProductInfoContent({
+  hasCdnAccess = false,
+}: {
+  hasCdnAccess?: boolean;
+}) {
   const { t } = useI18n();
   const L = t.landing;
 
@@ -84,17 +88,30 @@ export function ProductInfoContent() {
         <p className="text-muted-foreground">{L.relayBody}</p>
       </section>
 
+      {hasCdnAccess && (
+        <section className="space-y-4">
+          <h2 className="text-2xl font-semibold tracking-tight">{L.cdnTitle}</h2>
+          <p className="text-muted-foreground">{L.cdnBody}</p>
+          <div className="space-y-3">
+            <p className="text-sm font-medium">{L.cdnHowTitle}</p>
+            <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+              {L.cdnHowItems.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </div>
+          <div className="rounded-md border border-border bg-muted/30 p-4">
+            <p className="text-sm font-medium">{L.cdnAccessTitle}</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {L.cdnAccessEnabled}
+            </p>
+          </div>
+        </section>
+      )}
+
       <section className="space-y-3 rounded-md border border-border bg-muted/30 p-4">
         <h2 className="text-lg font-semibold">{L.whitelistTitle}</h2>
         <p className="text-sm text-muted-foreground">{L.whitelistBody}</p>
-        <a
-          className="inline-flex items-center gap-2 text-sm text-primary underline-offset-4 hover:underline"
-          href="https://github.com/hxehex/russia-mobile-internet-whitelist.git"
-          target="_blank"
-          rel="noreferrer noopener"
-        >
-          {L.whitelistLinkLabel}
-        </a>
       </section>
 
       <p className="border-t border-border pt-6 text-xs text-muted-foreground">

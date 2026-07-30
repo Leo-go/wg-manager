@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { FileText, Info, LogOut, Server } from "lucide-react";
+import { FileText, Info, LogOut, Server, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
@@ -19,13 +19,22 @@ function isNavActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function Sidebar({ userEmail }: { userEmail: string | null }) {
+export function Sidebar({
+  userEmail,
+  isAdmin,
+}: {
+  userEmail: string | null;
+  isAdmin: boolean;
+}) {
   const pathname = usePathname();
   const router = useRouter();
   const { t } = useI18n();
 
   const navItems = [
     { href: "/dashboard", label: t.nav.servers, icon: Server },
+    ...(isAdmin
+      ? [{ href: "/dashboard/admin", label: t.nav.admin, icon: Shield }]
+      : []),
     { href: "/dashboard/info", label: t.nav.info, icon: Info },
     { href: "/dashboard/about", label: t.nav.about, icon: FileText },
   ];

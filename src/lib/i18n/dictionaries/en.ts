@@ -83,10 +83,25 @@ export const en: Dictionary = {
     relayTitle: "What is RU Relay",
     relayBody:
       "Usually clients connect directly to your abroad exit via VLESS Reality. If direct connectivity in RU fails (or is unstable), add RU Relay on the setup page of your abroad exit server: traffic first lands on a VPS in RU and then exits abroad through your exit. After install, you’ll get a second VLESS URL/QR — “via Russia”.",
+    cdnTitle: "What is Yandex CDN mode",
+    cdnBody:
+      "This is an advanced mode for difficult networks where direct and even RU Relay can still be filtered by mobile networks or whitelist-like routing. In this mode the client connects to a domain behind Yandex Cloud CDN instead of your VPS directly.",
+    cdnHowTitle: "How it works",
+    cdnHowItems: [
+      "Path: client → Yandex CDN → Origin → Exit.",
+      "Try normal direct VPN first.",
+      "If direct is unstable, enable RU Relay.",
+      "If that still is not enough and your account has access, configure CDN mode.",
+    ],
+    cdnAccessTitle: "CDN mode access",
+    cdnAccessEnabled:
+      "Your account can use CDN mode. On the exit server setup page you will see a separate Yandex CDN card.",
+    cdnAccessRestricted:
+      "CDN mode is not shown to every user. It is usually enabled for referral / approved accounts as an advanced scenario.",
     whitelistTitle: "Context: white IP addresses",
     whitelistBody:
-      "Sometimes apps or networks check the apparent source IP against a whitelist. If direct exits don’t pass those checks, changing the exit/route may help. The link below is a reference repository with example white IPs. We don’t integrate with it — we only provide context.",
-    whitelistLinkLabel: "white IP whitelist (GitHub)",
+      "Sometimes apps or networks check the apparent source IP against a whitelist. If direct exits don’t pass those checks, changing the exit or route may help.",
+    whitelistLinkLabel: "white IP whitelist",
     disclaimer:
       "Use within applicable law. Hosting ads: Timeweb partner link — you pay the provider directly.",
   },
@@ -107,6 +122,7 @@ export const en: Dictionary = {
   },
   nav: {
     servers: "Servers",
+    admin: "Admin",
     info: "Information",
     about: "About",
     logOut: "Log out",
@@ -132,11 +148,33 @@ export const en: Dictionary = {
     setupVpn: "Setup VPN",
     badgeRelay: "RU relay",
     badgePlusRelay: "+relay",
+    badgeCdn: "CDN",
+    badgeCdnReady: "CDN ready",
+    badgeCdnInstalling: "CDN installing",
+    badgeCdnFailed: "CDN failed",
+    badgeCdnPending: "CDN pending",
     deleteConfirm:
       'Delete server "{name}" ({ip})?\n\nThis removes it from VLESS Manager only — Xray on the VPS is not uninstalled.',
     deleteFailed: "Could not delete server",
     addRelay: "RU Relay",
     relayChildOf: "→ {name}",
+    adminPanel: "Admin panel",
+  },
+  admin: {
+    title: "Admin panel",
+    subtitle:
+      "Enable Yandex CDN access for selected users without touching SQL.",
+    email: "Email",
+    access: "Yandex CDN access",
+    enabled: "Enabled",
+    disabled: "Disabled",
+    updated: "Updated",
+    enable: "Enable",
+    disable: "Disable",
+    loading: "Saving...",
+    failed: "Failed to update access",
+    empty: "No users found.",
+    back: "Back to servers",
   },
   about: {
     pageTitle: "About",
@@ -408,7 +446,7 @@ export const en: Dictionary = {
     shopExit:
       "Abroad exit VPS — you already have it (this page). Installer opens ports 80 and 11443.",
     shopOrigin:
-      "Origin VPS with a public IP (separate server or your RU Relay VPS). Installer opens 80/443. Note: Origin puts Nginx on :443 — RU Relay on that same IP will be replaced.",
+      "Origin VPS with a public IP (separate server or your RU Relay VPS). Installer opens 80/443. Timeweb Cloud is the recommended purchase path here. Note: Origin puts Nginx on :443 — RU Relay on that same IP will be replaced.",
     shopYandex:
       "Yandex Cloud — Certificate Manager + Cloud CDN (Compute VM not required for CDN):",
     shopDns:

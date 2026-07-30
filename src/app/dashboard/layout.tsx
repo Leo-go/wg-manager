@@ -1,5 +1,6 @@
 import { Sidebar } from "@/components/dashboard/sidebar";
 import { createClient } from "@/lib/supabase/server";
+import { isAdminEmail } from "@/lib/auth/admin";
 
 export default async function DashboardLayout({
   children,
@@ -15,7 +16,7 @@ export default async function DashboardLayout({
 
   return (
     <div className="flex min-h-screen">
-      <Sidebar userEmail={userEmail} />
+      <Sidebar userEmail={userEmail} isAdmin={isAdminEmail(userEmail)} />
       <main className="flex-1 overflow-auto">{children}</main>
     </div>
   );

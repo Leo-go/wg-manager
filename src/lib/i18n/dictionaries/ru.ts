@@ -82,10 +82,25 @@ export const ru: Dictionary = {
     relayTitle: "Что такое RU Relay",
     relayBody:
       "Обычно клиент подключается напрямую к вашему зарубежному VPS серверу через VLESS Reality. Если в РФ прямое подключение не работает (или нестабильно), добавьте RU Relay на странице установки зарубежного VPS сервера: трафик сначала попадёт на VPS в РФ, а затем выйдет за границу через ваш зарубежный VPS сервер. После установки вы получите второй VLESS URL/QR — «через Россию».",
+    cdnTitle: "Что такое режим Yandex CDN",
+    cdnBody:
+      "Это продвинутый режим для сложных сетей, где direct и даже RU Relay могут резаться мобильным фильтром или whitelist-логикой. В этом режиме клиент подключается не к вашему VPS напрямую, а к домену за Yandex Cloud CDN.",
+    cdnHowTitle: "Как это работает",
+    cdnHowItems: [
+      "Схема: клиент → Yandex CDN → Origin → Exit.",
+      "Сначала пробуйте обычный direct VPN.",
+      "Если direct нестабилен — включайте RU Relay.",
+      "Если и этого мало, и доступна advanced-фича — настраивайте CDN-режим.",
+    ],
+    cdnAccessTitle: "Доступ к CDN-режиму",
+    cdnAccessEnabled:
+      "Для вашего аккаунта режим CDN включён. На странице настройки exit-сервера вы увидите отдельную карточку Yandex CDN.",
+    cdnAccessRestricted:
+      "Режим CDN показывается не всем пользователям. Обычно он открывается для реферальных / одобренных аккаунтов как advanced-сценарий.",
     whitelistTitle: "Контекст: белые IP адреса",
     whitelistBody:
-      "Иногда приложения или сети «проверяют» источник подключения по IP (белый список). Если прямое подключение к зарубежному VPS не проходит по таким правилам, помогает смена VPS сервера или маршрута. Ниже — справочный репозиторий с примерами белых IP. Мы не интегрируемся с ним напрямую — добавляем контекст, чтобы вы понимали причины различного поведения.",
-    whitelistLinkLabel: "Список белых IP (GitHub)",
+      "Иногда приложения или сети «проверяют» источник подключения по IP (белый список). Если прямое подключение к зарубежному VPS не проходит по таким правилам, помогает смена VPS сервера или маршрута.",
+    whitelistLinkLabel: "Список белых IP",
     disclaimer:
       "Используйте сервис в рамках закона. Реклама хостинга: партнёрская ссылка Timeweb — вы платите провайдеру напрямую.",
   },
@@ -106,6 +121,7 @@ export const ru: Dictionary = {
   },
   nav: {
     servers: "Серверы",
+    admin: "Админка",
     info: "Информация",
     about: "О проекте",
     logOut: "Выйти",
@@ -131,11 +147,33 @@ export const ru: Dictionary = {
     setupVpn: "Установить VPN",
     badgeRelay: "RU релей",
     badgePlusRelay: "+релей",
+    badgeCdn: "CDN",
+    badgeCdnReady: "CDN готов",
+    badgeCdnInstalling: "CDN ставится",
+    badgeCdnFailed: "CDN ошибка",
+    badgeCdnPending: "CDN ожидает",
     deleteConfirm:
       "Удалить сервер «{name}» ({ip})?\n\nЭто удалит запись только из VLESS Manager — Xray на VPS не снимается.",
     deleteFailed: "Не удалось удалить сервер",
     addRelay: "RU Relay",
     relayChildOf: "→ {name}",
+    adminPanel: "Админ-панель",
+  },
+  admin: {
+    title: "Админ-панель",
+    subtitle:
+      "Включайте доступ к Yandex CDN точечно для нужных пользователей без SQL.",
+    email: "Email",
+    access: "Доступ к Yandex CDN",
+    enabled: "Включен",
+    disabled: "Выключен",
+    updated: "Обновлено",
+    enable: "Включить",
+    disable: "Выключить",
+    loading: "Сохранение...",
+    failed: "Не удалось обновить доступ",
+    empty: "Пользователи не найдены.",
+    back: "Назад к серверам",
   },
   about: {
     pageTitle: "О проекте",
@@ -407,7 +445,7 @@ export const ru: Dictionary = {
     shopExit:
       "Exit VPS за границей — уже есть (эта страница). Порты 80 и 11443 откроет установщик.",
     shopOrigin:
-      "Origin VPS с публичным IP (отдельный сервер или ваш RU Relay VPS). Порты 80/443 откроет установщик. Внимание: на Origin ставится Nginx на :443 — роль RU Relay на этом же IP будет заменена.",
+      "Origin VPS с публичным IP (отдельный сервер или ваш RU Relay VPS). Порты 80/443 откроет установщик. Для покупки можно использовать Timeweb Cloud. Внимание: на Origin ставится Nginx на :443 — роль RU Relay на этом же IP будет заменена.",
     shopYandex:
       "Yandex Cloud — Certificate Manager + Cloud CDN (Compute VM для CDN не нужен):",
     shopDns:

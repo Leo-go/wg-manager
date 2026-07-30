@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { InstallationStatus, Profile, Server } from "@/lib/supabase/types";
+import { trackEvent } from "@/lib/analytics/events";
 import {
   DEFAULT_SNI_DOMAIN,
   displayRelaySniDomain,
@@ -23,6 +24,10 @@ import {
   resolveSniDomain,
   type SniPresetValue,
 } from "@/lib/constants/sni";
+import {
+  TIMEWEB_DOMAINS_PARTNER_URL,
+  TIMEWEB_PARTNER_URL,
+} from "@/lib/constants/partner";
 import {
   isRuRelayEnabled,
   isYandexCdnEnabled,
@@ -215,6 +220,7 @@ export default function ServerSetupPage() {
   const [cdnOriginIp, setCdnOriginIp] = useState("");
   const [cdnFeatureAllowed, setCdnFeatureAllowed] = useState(false);
   const [copiedCdn, setCopiedCdn] = useState(false);
+  const trackedEventsRef = useRef<Record<string, boolean>>({});
   const [exitServer, setExitServer] = useState<{
     id: string;
     name: string;
@@ -658,6 +664,44 @@ export default function ServerSetupPage() {
     phase === "success" &&
     Boolean(vlessUrl);
 
+  useEffect(() => {
+    if (!server || isRelayServer || phase !== "success" || !vlessUrl) return;
+    const key = `direct-ready:${server.id}`;
+    if (trackedEventsRef.current[key]) return;
+    trackedEventsRef.current[key] = true;
+    trackEvent("direct_setup_ready", { serverId: server.id });
+  }, [isRelayServer, phase, server, vlessUrl]);
+
+  useEffect(() => {
+    if (!relayChildId) return;
+    const key = `relay-visible:${relayChildId}`;
+    if (trackedEventsRef.current[key]) return;
+    trackedEventsRef.current[key] = true;
+    trackEvent("relay_progress_visible", {
+      relayId: relayChildId,
+      status: relayChildStatus ?? "unknown",
+    });
+  }, [relayChildId, relayChildStatus]);
+
+  useEffect(() => {
+    if (!server || !canAddCdn) return;
+    const key = `cdn-visible:${server.id}`;
+    if (trackedEventsRef.current[key]) return;
+    trackedEventsRef.current[key] = true;
+    trackEvent("cdn_access_visible", {
+      serverId: server.id,
+      cdnStatus: cdnStatus ?? "none",
+    });
+  }, [canAddCdn, cdnStatus, server]);
+
+  useEffect(() => {
+    if (!server || cdnStatus !== "ready" || !cdnUrl) return;
+    const key = `cdn-ready:${server.id}`;
+    if (trackedEventsRef.current[key]) return;
+    trackedEventsRef.current[key] = true;
+    trackEvent("cdn_install_ready", { serverId: server.id });
+  }, [cdnStatus, cdnUrl, server]);
+
   const canStart = useMemo(() => {
     if (!server) return false;
     if (phase === "running") return false;
@@ -1080,16 +1124,16 @@ export default function ServerSetupPage() {
                     className="text-foreground underline underline-offset-2"
                     href="https://www.reg.ru/"
                     target="_blank"
-                    rel="noreferrer"
+                    rel="noopener"
                   >
                     REG.RU
                   </a>
                   {" · "}
                   <a
                     className="text-foreground underline underline-offset-2"
-                    href="https://timeweb.com/ru/services/domains/"
+                    href={TIMEWEB_DOMAINS_PARTNER_URL}
                     target="_blank"
-                    rel="noreferrer"
+                    rel="noopener"
                   >
                     Timeweb Domains
                   </a>
@@ -1099,18 +1143,9 @@ export default function ServerSetupPage() {
                   {t.cdn.shopOrigin}{" "}
                   <a
                     className="text-foreground underline underline-offset-2"
-                    href="https://www.hetzner.com/cloud"
+                    href={TIMEWEB_PARTNER_URL}
                     target="_blank"
-                    rel="noreferrer"
-                  >
-                    Hetzner
-                  </a>
-                  {" · "}
-                  <a
-                    className="text-foreground underline underline-offset-2"
-                    href="https://timeweb.cloud/"
-                    target="_blank"
-                    rel="noreferrer"
+                    rel="noopener"
                   >
                     Timeweb Cloud
                   </a>
@@ -1240,7 +1275,12 @@ export default function ServerSetupPage() {
                 </div>
               </div>
             ) : (
-              <Button onClick={() => setCdnDialogOpen(true)}>
+              <Button
+                onClick={() => {
+                  trackEvent("cdn_setup_opened", { source: "server_setup_card" });
+                  setCdnDialogOpen(true);
+                }}
+              >
                 {t.cdn.openSetup}
               </Button>
             )}
