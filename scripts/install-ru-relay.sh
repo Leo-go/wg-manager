@@ -1,5 +1,5 @@
 #!/bin/bash
-# Install RU relay hop: client → this VPS (Reality/gosuslugi) → exit VPS (xHTTP Reality).
+# Install RU relay hop: client → this VPS (xHTTP+TCP Reality) → exit VPS (xHTTP Reality).
 # Args:
 #   $1 EXIT_IP
 #   $2 EXIT_PORT (default 10443)
@@ -9,7 +9,11 @@
 #   $6 EXIT_SNI (default www.microsoft.com)
 #   $7 EXIT_PATH (default /wg-relay)
 #   $8 RELAY_PUBLIC_IP (optional, for VLESS URL)
-#   $9 RELAY_SNI (default www.gosuslugi.ru)
+#   $9 RELAY_SNI (default eh.vk.com)
+#
+# Client-facing dual inbounds:
+#   - xHTTP Reality on :443  (primary, mobile TSPU)
+#   - TCP Reality on :8443   (classic / Wi-Fi fallback)
 
 set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
@@ -23,8 +27,10 @@ EXIT_SID="${5:?EXIT_SID required}"
 EXIT_SNI="${6:-www.microsoft.com}"
 EXIT_PATH="${7:-/wg-relay}"
 RELAY_PUBLIC_IP="${8:-}"
-RELAY_SNI="${9:-www.gosuslugi.ru}"
-LISTEN_PORT=443
+RELAY_SNI="${9:-eh.vk.com}"
+XHTTP_PORT=443
+TCP_PORT=8443
+XHTTP_PATH="/ru-xhttp"
 
 if [ "$EUID" -ne 0 ]; then
   echo "ERROR: run as root" >&2
@@ -80,9 +86,38 @@ cat > /usr/local/etc/xray/config.json << EOF
   "log": { "loglevel": "warning" },
   "inbounds": [
     {
-      "tag": "ru-relay-in",
+      "tag": "ru-relay-in-xhttp",
       "listen": "0.0.0.0",
-      "port": ${LISTEN_PORT},
+      "port": ${XHTTP_PORT},
+      "protocol": "vless",
+      "settings": {
+        "clients": [ { "id": "${CLIENT_UUID}" } ],
+        "decryption": "none"
+      },
+      "streamSettings": {
+        "network": "xhttp",
+        "security": "reality",
+        "realitySettings": {
+          "show": false,
+          "dest": "${RELAY_SNI}:443",
+          "serverNames": [ "${RELAY_SNI}" ],
+          "privateKey": "${PRIVATE_KEY}",
+          "shortIds": [ "", "${SHORT_ID}" ]
+        },
+        "xhttpSettings": {
+          "path": "${XHTTP_PATH}",
+          "mode": "auto"
+        }
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": ["http", "tls", "quic"]
+      }
+    },
+    {
+      "tag": "ru-relay-in-tcp",
+      "listen": "0.0.0.0",
+      "port": ${TCP_PORT},
       "protocol": "vless",
       "settings": {
         "clients": [ { "id": "${CLIENT_UUID}" } ],
@@ -145,7 +180,11 @@ cat > /usr/local/etc/xray/config.json << EOF
   "routing": {
     "domainStrategy": "AsIs",
     "rules": [
-      { "type": "field", "inboundTag": ["ru-relay-in"], "outboundTag": "exit-proxy" }
+      {
+        "type": "field",
+        "inboundTag": ["ru-relay-in-xhttp", "ru-relay-in-tcp"],
+        "outboundTag": "exit-proxy"
+      }
     ]
   }
 }
@@ -163,7 +202,8 @@ if ! systemctl is-active --quiet xray; then
 fi
 
 if command -v ufw >/dev/null 2>&1; then
-  ufw allow "${LISTEN_PORT}"/tcp || true
+  ufw allow "${XHTTP_PORT}"/tcp || true
+  ufw allow "${TCP_PORT}"/tcp || true
 fi
 
 # light BBR
@@ -180,12 +220,17 @@ else
   PUBLIC_IP="${DETECTED_IP:-$(hostname -I | awk '{print $1}')}"
 fi
 
-VLESS_URL="vless://${CLIENT_UUID}@${PUBLIC_IP}:${LISTEN_PORT}?encryption=none&security=reality&sni=${RELAY_SNI}&fp=chrome&pbk=${PUBLIC_KEY}&sid=${SHORT_ID}&type=tcp&packetEncoding=xudp#WG-RU-Relay"
+# Primary: xHTTP on :443 (mobile). Classic: TCP on :8443 (Wi-Fi fallback).
+VLESS_URL="vless://${CLIENT_UUID}@${PUBLIC_IP}:${XHTTP_PORT}?encryption=none&security=reality&sni=${RELAY_SNI}&fp=chrome&pbk=${PUBLIC_KEY}&sid=${SHORT_ID}&type=xhttp&path=%2Fru-xhttp&mode=auto&packetEncoding=xudp#WG-RU-Relay-xHTTP"
+VLESS_TCP_URL="vless://${CLIENT_UUID}@${PUBLIC_IP}:${TCP_PORT}?encryption=none&security=reality&sni=${RELAY_SNI}&fp=chrome&pbk=${PUBLIC_KEY}&sid=${SHORT_ID}&type=tcp&packetEncoding=xudp#WG-RU-Relay-TCP"
 
 echo "RELAY_CLIENT_UUID=${CLIENT_UUID}"
 echo "RELAY_CLIENT_PBK=${PUBLIC_KEY}"
 echo "RELAY_CLIENT_SID=${SHORT_ID}"
 echo "RELAY_CLIENT_SNI=${RELAY_SNI}"
-echo "RELAY_CLIENT_PORT=${LISTEN_PORT}"
+echo "RELAY_CLIENT_PORT=${XHTTP_PORT}"
+echo "RELAY_CLIENT_TCP_PORT=${TCP_PORT}"
+echo "RELAY_CLIENT_XHTTP_PATH=${XHTTP_PATH}"
 echo "VLESS_CONFIG_URL=${VLESS_URL}"
+echo "VLESS_TCP_CONFIG_URL=${VLESS_TCP_URL}"
 echo "RELAY_READY=1"

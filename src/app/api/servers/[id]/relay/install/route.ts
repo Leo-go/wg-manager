@@ -8,7 +8,8 @@ import {
   extractUserFacingError,
   runRemoteBashScript,
 } from "@/lib/ssh/run-remote";
-import { extractVlessUrl } from "@/lib/relay/parse";
+import { DEFAULT_RELAY_SNI_DOMAIN } from "@/lib/constants/sni";
+import { extractVlessTcpUrl, extractVlessUrl } from "@/lib/relay/parse";
 import { ensureExitRelayInbound } from "@/lib/relay/ensure-exit-inbound";
 import {
   encodeSetupStreamEvent,
@@ -165,7 +166,11 @@ export async function POST(
 
     const runInstall = async (
       onEvent?: (event: SetupStreamEvent) => void
-    ): Promise<{ vlessConfigUrl: string; diagnostics: string }> => {
+    ): Promise<{
+      vlessConfigUrl: string;
+      vlessTcpConfigUrl: string | null;
+      diagnostics: string;
+    }> => {
       let highestStep: SetupStepIndex = 0;
       const pushStep = (step: SetupStepIndex) => {
         if (step < highestStep) return;
@@ -192,7 +197,7 @@ export async function POST(
             exitCreds.sni,
             exitCreds.path,
             relayRow.ip_address,
-            relayRow.sni_domain || "www.gosuslugi.ru",
+            relayRow.sni_domain || DEFAULT_RELAY_SNI_DOMAIN,
           ],
           onConnected: () => pushStep(1),
           onOutput: (chunk) => parseProgressFromChunk(chunk, pushStep),
@@ -227,6 +232,8 @@ export async function POST(
           "Could not parse VLESS config URL from RU relay installer output"
         );
       }
+      const vlessTcpConfigUrl =
+        extractVlessTcpUrl(installResult.fullOutput) || null;
 
       pushStep(5);
 
@@ -236,6 +243,7 @@ export async function POST(
         .from("servers")
         .update({
           vless_config_url: vlessConfigUrl,
+          vless_tcp_config_url: vlessTcpConfigUrl,
           installation_status: "completed",
           status: "active",
           last_check: now,
@@ -252,7 +260,11 @@ export async function POST(
         })
         .eq("id", exitId);
 
-      return { vlessConfigUrl, diagnostics: fullOutput };
+      return {
+        vlessConfigUrl,
+        vlessTcpConfigUrl,
+        diagnostics: fullOutput,
+      };
     };
 
     if (streamMode) {
@@ -267,6 +279,7 @@ export async function POST(
             send({
               type: "done",
               vlessConfigUrl: result.vlessConfigUrl,
+              vlessTcpConfigUrl: result.vlessTcpConfigUrl ?? undefined,
               diagnostics: result.diagnostics,
               message: "RU relay is ready",
             });
@@ -312,6 +325,7 @@ export async function POST(
       success: true,
       relayServerId,
       vlessConfigUrl: result.vlessConfigUrl,
+      vlessTcpConfigUrl: result.vlessTcpConfigUrl,
       directVlessConfigUrl: exitRow.vless_config_url ?? null,
       diagnostics: result.diagnostics,
       message: "RU relay is ready",

@@ -28,10 +28,14 @@ ALTER TABLE servers
 ALTER TABLE servers
   ADD COLUMN IF NOT EXISTS relay_status text;
 
+ALTER TABLE servers
+  ADD COLUMN IF NOT EXISTS vless_tcp_config_url text;
+
 COMMENT ON COLUMN servers.role IS 'exit (abroad) | relay (RU hop)';
 COMMENT ON COLUMN servers.exit_server_id IS 'For role=relay: FK to exit server';
-COMMENT ON COLUMN servers.relay_vless_config_url IS 'On exit: client VLESS URL via RU relay';
+COMMENT ON COLUMN servers.relay_vless_config_url IS 'On exit: client VLESS URL via RU relay (primary xHTTP)';
 COMMENT ON COLUMN servers.relay_uuid IS 'On exit: UUID of xHTTP Reality inbound for relays';
+COMMENT ON COLUMN servers.vless_tcp_config_url IS 'On relay: classic TCP Reality URL (:8443 fallback)';
 
 -- Reload PostgREST schema cache (run after adding columns)
 NOTIFY pgrst, 'reload schema';

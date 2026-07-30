@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { DEFAULT_RELAY_SNI_DOMAIN } from "@/lib/constants/sni";
 
 export const runtime = "nodejs";
 
@@ -19,7 +20,24 @@ const bodySchema = z.object({
     .default("root"),
   ssh_password: z.string().optional(),
   auth_mode: z.enum(["ssh_key", "password"]).default("ssh_key"),
-  relay_sni: z.string().trim().min(1).max(255).default("www.gosuslugi.ru"),
+  relay_sni: z
+    .string()
+    .trim()
+    .min(1)
+    .max(255)
+    .default(DEFAULT_RELAY_SNI_DOMAIN),
+  /**
+   * Optional advanced overlay (not exposed in default UI).
+   * When set, forces exit xHTTP inbound to be re-prepared with these values.
+   */
+  exit_xhttp_path: z
+    .string()
+    .trim()
+    .min(1)
+    .max(255)
+    .refine((v) => v.startsWith("/"), "exit_xhttp_path must start with '/'")
+    .optional(),
+  exit_xhttp_port: z.coerce.number().int().min(1).max(65535).optional(),
 });
 
 /**
@@ -64,6 +82,13 @@ export async function POST(
       );
     }
     const body = bodyResult.data;
+    // Only when caller explicitly opts into custom xHTTP overlay.
+    const customXhttpPath = body.exit_xhttp_path?.trim();
+    const customXhttpPort = body.exit_xhttp_port;
+    const hasCustomXhttp =
+      typeof customXhttpPath === "string" ||
+      typeof customXhttpPort === "number";
+    const now = new Date().toISOString();
 
     if (body.auth_mode === "password" && !body.ssh_password?.trim()) {
       return NextResponse.json(
@@ -126,7 +151,34 @@ export async function POST(
       status: "inactive" as const,
       // Replace must not keep a previous successful VLESS — otherwise UI opens as "ready".
       vless_config_url: null,
-      updated_at: new Date().toISOString(),
+      vless_tcp_config_url: null,
+      updated_at: now,
+    };
+
+    const clearExitViaRelay = async () => {
+      // Default path: keep existing exit xHTTP inbound credentials so reinstall
+      // reuses the working tunnel. Custom xHTTP overlay forces a re-prepare.
+      const exitResetPayload: Record<string, unknown> = {
+        relay_vless_config_url: null,
+        relay_status: "pending",
+        updated_at: now,
+      };
+
+      if (hasCustomXhttp) {
+        exitResetPayload.relay_uuid = null;
+        exitResetPayload.relay_public_key = null;
+        exitResetPayload.relay_short_id = null;
+        if (customXhttpPath) exitResetPayload.relay_path = customXhttpPath;
+        if (typeof customXhttpPort === "number") {
+          exitResetPayload.relay_listen_port = customXhttpPort;
+        }
+      }
+
+      await supabase
+        .from("servers")
+        .update(exitResetPayload)
+        .eq("id", exitId)
+        .eq("user_id", user.id);
     };
 
     if (existingRelayId) {
@@ -144,16 +196,7 @@ export async function POST(
         );
       }
 
-      // Clear stale via-relay URL on the exit until reinstall succeeds.
-      await supabase
-        .from("servers")
-        .update({
-          relay_vless_config_url: null,
-          relay_status: "pending",
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", exitId)
-        .eq("user_id", user.id);
+      await clearExitViaRelay();
 
       return NextResponse.json({
         success: true,
@@ -184,6 +227,8 @@ export async function POST(
         { status: 500 }
       );
     }
+
+    await clearExitViaRelay();
 
     return NextResponse.json({
       success: true,

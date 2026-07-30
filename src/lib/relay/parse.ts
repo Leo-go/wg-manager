@@ -22,6 +22,15 @@ export function extractVlessUrl(output: string): string | null {
   return fallback?.[0]?.trim() ?? null;
 }
 
+/** Classic TCP Reality fallback URL from RU relay installer. */
+export function extractVlessTcpUrl(output: string): string | null {
+  const marked = extractMarkedValue(output, "VLESS_TCP_CONFIG_URL");
+  if (marked?.startsWith("vless://")) {
+    return marked;
+  }
+  return null;
+}
+
 export type ExitRelayMarkers = {
   uuid: string;
   publicKey: string;

@@ -4,6 +4,10 @@ import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Copy, Loader2 } from "lucide-react";
 import { getPlatformSshPublicKey } from "@/lib/constants/partner";
+import {
+  DEFAULT_RELAY_SNI_DOMAIN,
+  resolveSniDomain,
+} from "@/lib/constants/sni";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { RelaySniDomainField } from "@/components/servers/relay-sni-domain-field";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n/provider";
 
@@ -48,7 +53,8 @@ export function AddRuRelayDialog({
     platformKeyConfigured ? "ssh_key" : "password"
   );
   const [sshPassword, setSshPassword] = useState("");
-  const [relaySni, setRelaySni] = useState("www.gosuslugi.ru");
+  const [relaySniPreset, setRelaySniPreset] = useState(DEFAULT_RELAY_SNI_DOMAIN);
+  const [customRelaySni, setCustomRelaySni] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [copiedKey, setCopiedKey] = useState(false);
@@ -65,7 +71,8 @@ export function AddRuRelayDialog({
     setSshUsername("root");
     setAuthMode(platformKeyConfigured ? "ssh_key" : "password");
     setSshPassword("");
-    setRelaySni("www.gosuslugi.ru");
+    setRelaySniPreset(DEFAULT_RELAY_SNI_DOMAIN);
+    setCustomRelaySni("");
     setError("");
     setCopiedKey(false);
   };
@@ -97,6 +104,12 @@ export function AddRuRelayDialog({
         throw new Error(a.errors.platformKeyMissing);
       }
 
+      const relaySni = resolveSniDomain(
+        relaySniPreset,
+        customRelaySni,
+        DEFAULT_RELAY_SNI_DOMAIN
+      );
+
       const response = await fetch(
         `/api/servers/${exitServerId}/relay/setup`,
         {
@@ -111,7 +124,7 @@ export function AddRuRelayDialog({
             ssh_username: sshUsername.trim() || "root",
             auth_mode: authMode,
             ssh_password: authMode === "password" ? sshPassword : undefined,
-            relay_sni: relaySni.trim() || "www.gosuslugi.ru",
+            relay_sni: relaySni,
           }),
         }
       );
@@ -139,13 +152,24 @@ export function AddRuRelayDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-h-[90vh] overflow-y-auto max-w-lg">
         <DialogHeader>
           <DialogTitle>{r.title}</DialogTitle>
           <DialogDescription>
             {r.description.replace("{name}", exitServerName)}
           </DialogDescription>
         </DialogHeader>
+
+        <div className="space-y-2 rounded-md border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
+          <p className="font-medium text-foreground">{r.howItWorksTitle}</p>
+          <ol className="list-decimal space-y-1 pl-4">
+            <li>{r.howItWorksStep1}</li>
+            <li>{r.howItWorksStep2}</li>
+            <li>{r.howItWorksStep3}</li>
+            <li>{r.howItWorksStep4}</li>
+          </ol>
+          <p>{r.howItWorksNote}</p>
+        </div>
 
         <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
           <div className="space-y-2">
@@ -260,16 +284,13 @@ export function AddRuRelayDialog({
             )}
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="relay-sni">{r.relaySni}</Label>
-            <Input
-              id="relay-sni"
-              value={relaySni}
-              onChange={(e) => setRelaySni(e.target.value)}
-              disabled={loading}
-            />
-            <p className="text-xs text-muted-foreground">{r.relaySniHint}</p>
-          </div>
+          <RelaySniDomainField
+            preset={relaySniPreset}
+            customValue={customRelaySni}
+            onPresetChange={setRelaySniPreset}
+            onCustomValueChange={setCustomRelaySni}
+            disabled={loading}
+          />
 
           {error && (
             <p

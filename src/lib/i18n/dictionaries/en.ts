@@ -278,7 +278,7 @@ export const en: Dictionary = {
     readyHint: "Scan the QR code or copy the VLESS URL into your client app.",
     readyTitleRelay: "RU Relay is ready",
     readyHintRelay:
-      "Scan the QR code or copy the VLESS URL — the client connects via the Russian hop.",
+      "On mobile, import the xHTTP URL. TCP classic (:8443) is a Wi‑Fi fallback.",
     sniTip:
       "Using SNI: {sni}. If connection fails, try changing the SNI domain above and re-running setup.",
     relaySniTip:
@@ -321,18 +321,23 @@ export const en: Dictionary = {
       "If the cause is still unclear, inspect the raw logs below and look for the first explicit error.",
     directUrl: "Direct VLESS URL (exit)",
     relayUrl: "Relay VLESS URL (via this RU hop)",
+    relayUrlXhttp: "VLESS xHTTP (mobile, :443)",
+    relayUrlTcp: "VLESS TCP classic (:8443)",
+    relayTransportHint:
+      "On LTE try xHTTP first. TCP classic is a Wi‑Fi fallback if your provider still allows TCP Reality.",
     reRun: "Re-run setup",
     backServers: "Back to servers",
     relayCardTitle: "RU Relay — Russian hop",
     relayCardHint:
-      "Optional Russian hop: traffic looks like a local site, then exits abroad through this VPS.",
+      "Exit VPN must be ready first. Then add a RU VPS, install the relay, and import the “via RU relay” URL in your client — not the direct exit URL.",
     addRelay: "Add RU Relay",
     openRelay: "Open relay config",
     openRelaySetup: "Open relay setup",
     replaceRelay: "Replace / reinstall RU relay",
     replaceRelayHint:
       "Adding again replaces the current RU VPS: the old config is cleared and you must reinstall.",
-    viaRelay: "Via RU relay (use when direct is blocked)",
+    viaRelay: "Via RU relay — xHTTP (when direct is blocked)",
+    viaRelayTcp: "Via RU relay — TCP classic (:8443)",
     statusReady: "Ready",
     statusInstalling: "Installing",
     statusFailed: "Failed",
@@ -374,10 +379,160 @@ export const en: Dictionary = {
     authHint:
       "SSH key works only if this RU VPS already has the platform public key. Otherwise choose root password.",
     relaySni: "Relay SNI (client → RU)",
-    relaySniHint: "Default mimics gosuslugi over Reality on :443.",
+    relaySniHint:
+      "Masks as a Russian site on :443. Prefer eh.vk.com; if unstable try max.ru or rutube.ru.",
+    howItWorksTitle: "How it works (order)",
+    howItWorksStep1: "Abroad VPN is already installed (this exit is ready).",
+    howItWorksStep2:
+      "Enter IP and SSH access for a VPS in Russia — no xHTTP/path fields to fill.",
+    howItWorksStep3:
+      "On the next page click “Install RU Relay” and wait until it succeeds.",
+    howItWorksStep4:
+      "In your client, import the relay QR/URL (or “via RU relay” on the exit) — not the direct exit VLESS.",
+    howItWorksNote:
+      "After install you get two URLs: xHTTP on :443 (for mobile) and TCP classic on :8443 (fallback). RU → exit transport is configured automatically.",
     continue: "Continue → Setup",
     installing: "Saving…",
     cancel: "Cancel",
     failed: "Failed to register RU relay",
+  },
+  cdn: {
+    cardTitle: "Yandex CDN — bypass without a whitelist IP",
+    cardHint:
+      "Client → Yandex Cloud CDN → Origin → this Exit. You need a domain, a second Origin VPS, and a Yandex Cloud account.",
+    openSetup: "Set up Yandex CDN",
+    replaceSetup: "Reconfigure Yandex CDN",
+    shopTitle: "What to buy / prepare",
+    shopDomain:
+      "A domain with DNS (records origin.*, relay.*, cdn.*):",
+    shopExit:
+      "Abroad exit VPS — you already have it (this page). Installer opens ports 80 and 11443.",
+    shopOrigin:
+      "Origin VPS with a public IP (separate server or your RU Relay VPS). Installer opens 80/443. Note: Origin puts Nginx on :443 — RU Relay on that same IP will be replaced.",
+    shopYandex:
+      "Yandex Cloud — Certificate Manager + Cloud CDN (Compute VM not required for CDN):",
+    shopDns:
+      "Create DNS first (see hints under the fields), wait for resolve, then run install.",
+    title: "Yandex CDN",
+    description:
+      "We save settings and SSH-install Exit (:11443 TLS) + Origin (Nginx+Xray). You finish Certificate Manager + CDN in the Yandex console.",
+    dnsBeforeInstallTitle: "DNS before server install",
+    dnsBeforeInstallBody:
+      "In your registrar DNS panel create the records below. Wrong DNS makes Let's Encrypt and install fail. CDN domain CNAME comes only after the Yandex Cloud CDN resource exists.",
+    cdnDomain: "CDN domain (client)",
+    cdnDomainDnsHint:
+      "We recommend using a www host from the start, e.g. www.example.com. Do not create an A record yet. After CDN in Yandex: CNAME this name → the hostname from Cloud CDN (usually *.topology.gslb.yccdn.ru).",
+    originDomain: "Origin domain",
+    originDomainDnsHint:
+      "Usually a separate subdomain, e.g. origin.example.com. Now: A record for this name → Origin VPS IPv4 (field below). Required before install — certificate + Yandex CDN origin.",
+    relayDomain: "Relay domain (Exit TLS)",
+    relayDomainDnsHint:
+      "Usually a separate subdomain, e.g. relay.example.com. Now: A record for this name → this Exit IPv4 ({exitIp}). Required before install — Let's Encrypt on Exit for :11443.",
+    email: "Email for Let's Encrypt",
+    path: "XHTTP path",
+    paddingKey: "Padding key",
+    originIp: "Origin VPS IPv4",
+    originIpDnsHint:
+      "Origin domain A record must point here. You may use your RU Relay VPS IP — it becomes Origin (RU Relay on :443 is replaced).",
+    originRoleWarning:
+      "Origin installer overwrites Xray and takes :443 (Nginx). If this IP is your RU Relay, relay client URLs stop working; the path becomes Client → Yandex CDN → this Origin → Exit.",
+    originSshPort: "Origin SSH port",
+    originSshUser: "Origin SSH username",
+    originSshPassword: "Origin SSH password",
+    saveAndInstall: "Save and install on servers",
+    installing: "Installing Exit + Origin…",
+    cancel: "Cancel",
+    failed: "Failed to configure Yandex CDN",
+    readyTitle: "CDN servers are ready",
+    readyHint:
+      "The script installed Exit + Origin. Next: Certificate Manager, CDN resource, and CNAME — open “What to do next”.",
+    clientUrl: "VLESS via Yandex CDN",
+    whatNext: "What to do next",
+    checklistTitle: "Short checklist",
+    checklistDns: "1) DNS: A origin→Origin IP, A relay→Exit IP must already work.",
+    checklistCert:
+      "2) Certificate Manager → Let's Encrypt for the CDN domain (DNS challenge).",
+    checklistCdn:
+      "3) Cloud CDN → resource: origin=Origin domain, HTTPS, Host=Origin, no cache, methods GET/HEAD/OPTIONS.",
+    checklistCname:
+      "4) CNAME the CDN domain → hostname from the CDN panel (*.topology.gslb.yccdn.ru), HTTP→HTTPS.",
+    checklistTest:
+      "5) curl OPTIONS https://CDN-domain/cdn-check → 204 and X-CDN-Origin: ok, then import VLESS into v2rayNG.",
+    docsCert: "Certificate Manager docs",
+    docsCdn: "Cloud CDN docs",
+    docsCreate: "Create CDN resource",
+    nextSteps: {
+      title: "What to do next after CDN install",
+      intro:
+        "The script already set up Exit (:11443) and Origin (Nginx+Xray). Finish Yandex Cloud and DNS for the client domain using the steps below. Use your values from “Your details”.",
+      yourValuesTitle: "Your details (from setup form)",
+      labelCdn: "CDN domain (client)",
+      labelOrigin: "Origin domain",
+      labelRelay: "Relay domain (Exit TLS)",
+      labelOriginIp: "Origin IP",
+      labelExitIp: "Exit IP",
+      openConsole: "Open Yandex Cloud console",
+      step1Title: "Certificate Manager — cert for the CDN domain",
+      step1Body:
+        "Open Yandex Cloud → Certificate Manager → create a Let's Encrypt certificate.",
+      step1Item1:
+        "Certificate domain(s): exactly {cdnDomain} (if you use www, add www.{cdnDomain} or make www the client hostname).",
+      step1Item2:
+        "Challenge type: DNS. Create the CNAME _acme-challenge (as shown by Yandex) at the registrar for zone {cdnDomain}. Do not confuse it with the CDN traffic CNAME.",
+      step1Item3:
+        "Wait until status is Issued. Keep the _acme-challenge record for renewal.",
+      step2Title: "Cloud CDN — create a resource",
+      step2Body: "Cloud CDN → create resource. Fill fields exactly like this:",
+      step2Origin: "Origin hostname",
+      step2Protocol: "Origin protocol",
+      step2Host: "Host header (custom)",
+      step2Domain: "Personal / client domain",
+      step2Cert: "Certificate",
+      step2CertValue: "the one issued for {cdnDomain}",
+      step2Extra:
+        "Disable request redirects to origin and “follow origin redirects”. End-user access: allowed.",
+      step3Title: "Caching and content",
+      step3Item1: "CDN caching — off.",
+      step3Item2: "Browser caching — off.",
+      step3Item3: "gzip — do not compress.",
+      step3Item4: "Large file segmentation — off.",
+      step4Title: "HTTP methods",
+      step4Item1:
+        "Allowed methods: GET, HEAD, OPTIONS (POST is often unavailable in Yandex CDN — that is expected).",
+      step4Item2: "CORS — Do not add. Custom HTTP response — off.",
+      step5Title: "DNS CNAME for the client domain",
+      step5Body:
+        "In the CDN resource card copy the CNAME target (often *.topology.gslb.yccdn.ru).",
+      step5Item1:
+        "At your registrar, for {cdnDomain} (often host www or @) create CNAME → the Yandex value.",
+      step5Item2:
+        "If the registrar blocks apex CNAME, use www.{cdnDomain}: certificate and CDN personal domain must be www too.",
+      step5Item3:
+        "In CDN: client redirect HTTP→HTTPS. Do not delete _acme-challenge.",
+      step6Title: "Verification",
+      step6Body: "From your PC (disable AV DNS filters if needed):",
+      step6Cmd:
+        "curl -sI -X OPTIONS \"https://{cdnDomain}/cdn-check\"",
+      step6Expect:
+        "Expect HTTP 204 and X-CDN-Origin: ok. Certificate must be for {cdnDomain}, not *.yccdn.cloud.yandex.net.",
+      step7Title: "Client — import VLESS",
+      step7Body:
+        "Copy the VLESS URL / QR from this page (after the steps above). Recommended clients with xHTTP packet-up + extra:",
+      step7Item1: "Android: v2rayNG (latest APK from GitHub Releases).",
+      step7Item2: "Windows: v2rayN (latest release, Xray core ≥ 26.5.9).",
+      step7Item3:
+        "Import the link as-is — do not strip the extra parameter (padding for Yandex CDN).",
+      step7Warning:
+        "Hiddify and some older clients often break padding (Origin logs show x_padding=XXXX) — Yandex CDN will time out. Use v2rayNG / v2rayN.",
+      clientAndroid: "v2rayNG (Android)",
+      clientWindows: "v2rayN (Windows)",
+      tipsTitle: "If it does not connect",
+      tip1:
+        "Check DNS: dig/nslookup {cdnDomain} must point to CDN, not the Origin IP.",
+      tip2:
+        "Temporarily disable antivirus/DNS filter — it can break CDN domain resolution.",
+      tip3:
+        "A direct Origin URL may work while CDN fails: first get 204 on /cdn-check via the CDN domain.",
+    },
   },
 };

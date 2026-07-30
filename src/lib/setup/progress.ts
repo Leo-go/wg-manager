@@ -13,6 +13,8 @@ export type SetupStreamEvent =
   | {
       type: "done";
       vlessConfigUrl: string;
+      /** Classic TCP Reality fallback (RU relay dual inbound) */
+      vlessTcpConfigUrl?: string;
       diagnostics: string;
       message?: string;
     }

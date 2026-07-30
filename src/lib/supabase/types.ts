@@ -1,6 +1,7 @@
 export type Profile = {
   id: string;
   email: string;
+  enable_yandex_cdn?: boolean | null;
   created_at: string;
   updated_at: string;
 };
@@ -36,6 +37,8 @@ export type Server = {
   reality_private_key?: string | null;
   sni_domain?: string | null;
   vless_config_url?: string | null;
+  /** On relay: classic TCP Reality URL (:8443) alongside primary xHTTP */
+  vless_tcp_config_url?: string | null;
   installation_status?: InstallationStatus | null;
   last_check?: string | null;
   /** manual | timeweb | … (optional column — see scripts/timeweb-columns.sql) */
@@ -53,6 +56,21 @@ export type Server = {
   relay_short_id?: string | null;
   relay_path?: string | null;
   relay_status?: string | null;
+  /** Yandex CDN path (on exit) */
+  cdn_status?: string | null;
+  cdn_domain?: string | null;
+  cdn_origin_domain?: string | null;
+  cdn_relay_domain?: string | null;
+  cdn_uuid?: string | null;
+  cdn_path?: string | null;
+  cdn_padding_key?: string | null;
+  cdn_email?: string | null;
+  cdn_origin_ip?: string | null;
+  cdn_origin_ssh_port?: number | null;
+  cdn_origin_ssh_username?: string | null;
+  cdn_origin_ssh_password?: string | null;
+  cdn_exit_listen_port?: number | null;
+  cdn_vless_config_url?: string | null;
   status: ServerStatus;
   created_at: string;
   updated_at: string;
