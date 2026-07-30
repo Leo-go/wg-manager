@@ -175,6 +175,9 @@ export const en: Dictionary = {
     failed: "Failed to update access",
     empty: "No users found.",
     back: "Back to servers",
+    loadErrorTitle: "Failed to load users",
+    loadErrorHint:
+      "Check Vercel → Environment Variables: SUPABASE_SERVICE_ROLE_KEY (Production), then Redeploy. Get the key from Supabase → Project Settings → API → service_role.",
   },
   about: {
     pageTitle: "About",

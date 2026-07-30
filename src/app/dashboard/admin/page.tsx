@@ -1,9 +1,10 @@
 import { redirect } from "next/navigation";
-import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
-import type { Profile } from "@/lib/supabase/types";
 import { isAdminEmail } from "@/lib/auth/admin";
+import { loadAdminProfiles } from "@/lib/admin/load-profiles";
 import { AdminUsersPageClient } from "@/components/admin/admin-users-page-client";
+
+export const dynamic = "force-dynamic";
 
 export default async function AdminPage() {
   const supabase = await createClient();
@@ -18,19 +19,13 @@ export default async function AdminPage() {
     redirect("/dashboard");
   }
 
-  const admin = createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
-
-  const { data, error } = await admin
-    .from("profiles")
-    .select("id, email, enable_yandex_cdn, created_at, updated_at")
-    .order("created_at", { ascending: false });
+  const { profiles, error } = await loadAdminProfiles();
 
   if (error) {
-    console.error("Failed to load profiles:", error.message);
+    console.error("Failed to load admin profiles:", error);
   }
 
-  return <AdminUsersPageClient initialProfiles={(data ?? []) as Profile[]} />;
+  return (
+    <AdminUsersPageClient initialProfiles={profiles} loadError={error} />
+  );
 }

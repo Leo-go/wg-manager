@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/admin";
 import { isAdminEmail } from "@/lib/auth/admin";
 
 export const runtime = "nodejs";
@@ -40,15 +40,33 @@ export async function PATCH(
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
 
-  const admin = createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
+  let admin;
+  try {
+    admin = createServiceClient();
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Service role not configured";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 
-  const { error } = await admin
-    .from("profiles")
-    .update({ enable_yandex_cdn: parsedBody.data.enabled })
-    .eq("id", parsedId.data);
+  const { data: authUser, error: getUserError } =
+    await admin.auth.admin.getUserById(parsedId.data);
+  if (getUserError || !authUser.user) {
+    return NextResponse.json(
+      { error: getUserError?.message || "User not found" },
+      { status: 404 }
+    );
+  }
+
+  const email = authUser.user.email ?? "";
+  const { error } = await admin.from("profiles").upsert(
+    {
+      id: parsedId.data,
+      email,
+      enable_yandex_cdn: parsedBody.data.enabled,
+    },
+    { onConflict: "id" }
+  );
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

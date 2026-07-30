@@ -16,10 +16,12 @@ import { useI18n } from "@/lib/i18n/provider";
 
 type AdminUsersPageClientProps = {
   initialProfiles: Profile[];
+  loadError?: string | null;
 };
 
 export function AdminUsersPageClient({
   initialProfiles,
+  loadError = null,
 }: AdminUsersPageClientProps) {
   const { t } = useI18n();
   const a = t.admin;
@@ -66,6 +68,14 @@ export function AdminUsersPageClient({
           <Link href="/dashboard">{a.back}</Link>
         </Button>
       </div>
+
+      {loadError && (
+        <div className="rounded-md border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
+          <p className="font-medium">{a.loadErrorTitle}</p>
+          <p className="mt-1 break-words opacity-90">{loadError}</p>
+          <p className="mt-2 text-muted-foreground">{a.loadErrorHint}</p>
+        </div>
+      )}
 
       {profiles.length === 0 ? (
         <p className="text-sm text-muted-foreground">{a.empty}</p>

@@ -174,6 +174,9 @@ export const ru: Dictionary = {
     failed: "Не удалось обновить доступ",
     empty: "Пользователи не найдены.",
     back: "Назад к серверам",
+    loadErrorTitle: "Не удалось загрузить пользователей",
+    loadErrorHint:
+      "Проверьте в Vercel → Environment Variables: SUPABASE_SERVICE_ROLE_KEY (Production) и сделайте Redeploy. Ключ берётся в Supabase → Project Settings → API → service_role.",
   },
   about: {
     pageTitle: "О проекте",

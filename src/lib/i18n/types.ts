@@ -121,6 +121,8 @@ export type Dictionary = {
     failed: string;
     empty: string;
     back: string;
+    loadErrorTitle: string;
+    loadErrorHint: string;
   };
   about: {
     pageTitle: string;

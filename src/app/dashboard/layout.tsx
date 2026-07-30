@@ -1,4 +1,4 @@
-import { Sidebar } from "@/components/dashboard/sidebar";
+import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { createClient } from "@/lib/supabase/server";
 import { isAdminEmail } from "@/lib/auth/admin";
 
@@ -9,15 +9,14 @@ export default async function DashboardLayout({
 }) {
   const supabase = await createClient();
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  const userEmail = session?.user?.email ?? null;
+  const userEmail = user?.email ?? null;
 
   return (
-    <div className="flex min-h-screen">
-      <Sidebar userEmail={userEmail} isAdmin={isAdminEmail(userEmail)} />
-      <main className="flex-1 overflow-auto">{children}</main>
-    </div>
+    <DashboardShell userEmail={userEmail} isAdmin={isAdminEmail(userEmail)}>
+      {children}
+    </DashboardShell>
   );
 }

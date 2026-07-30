@@ -12,8 +12,7 @@ import { useI18n } from "@/lib/i18n/provider";
 function isNavActive(pathname: string, href: string): boolean {
   if (href === "/dashboard") {
     return (
-      pathname === "/dashboard" ||
-      pathname.startsWith("/dashboard/servers")
+      pathname === "/dashboard" || pathname.startsWith("/dashboard/servers")
     );
   }
   return pathname === href || pathname.startsWith(`${href}/`);
@@ -22,9 +21,13 @@ function isNavActive(pathname: string, href: string): boolean {
 export function Sidebar({
   userEmail,
   isAdmin,
+  onNavigate,
+  mobileHeaderAction,
 }: {
   userEmail: string | null;
   isAdmin: boolean;
+  onNavigate?: () => void;
+  mobileHeaderAction?: React.ReactNode;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -40,16 +43,20 @@ export function Sidebar({
   ];
 
   return (
-    <aside className="flex h-screen w-64 flex-col border-r border-border bg-card">
-      <div className="flex h-16 items-center justify-between gap-2 border-b border-border px-6">
+    <aside className="flex h-full min-h-screen w-64 flex-col border-r border-border bg-card">
+      <div className="flex h-16 items-center justify-between gap-2 border-b border-border px-4 sm:px-6">
         <span className="text-lg font-semibold">{t.common.brand}</span>
-        <LanguageSwitcher compact />
+        <div className="flex items-center gap-1">
+          <LanguageSwitcher compact />
+          {mobileHeaderAction}
+        </div>
       </div>
       <nav className="flex flex-1 flex-col gap-1 p-4">
         {navItems.map(({ href, label, icon: Icon }) => (
           <Link
             key={href}
             href={href}
+            onClick={() => onNavigate?.()}
             className={cn(
               "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
               isNavActive(pathname, href)
@@ -75,6 +82,7 @@ export function Sidebar({
             void (async () => {
               const supabase = createClient();
               await supabase.auth.signOut();
+              onNavigate?.();
               router.push("/login");
             })();
           }}
