@@ -19,6 +19,6 @@ export function isTimewebApiBuyEnabled(): boolean {
  */
 export function getPlatformSshPublicKey(): string {
   return (
-    process.env.NEXT_PUBLIC_WG_SSH_PUBLIC_KEY?.trim().replace(/\\n/g, "\n") || ""
+    process.env.NEXT_PUBLIC_WG_SSH_PUBLIC_KEY?.replace(/\\n/g, "\n").trim() || ""
   );
 }

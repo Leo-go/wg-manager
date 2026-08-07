@@ -23,6 +23,7 @@
 *.pem
 .agent-*.txt
 .agent-final-summary.txt
+.test-result.txt
 
 # debug
 npm-debug.log*
