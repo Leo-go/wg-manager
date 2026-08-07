@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { LanguageSwitcher } from "@/components/i18n/language-switcher";
 import { ProductInfoContent } from "@/components/marketing/product-info-content";
+import { SiteFooter } from "@/components/marketing/site-footer";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/lib/i18n/provider";
 
@@ -37,9 +38,7 @@ export default function HomePage() {
 
         <ProductInfoContent />
 
-        <footer className="border-t border-border pt-6 text-xs text-muted-foreground">
-          {L.disclaimer}
-        </footer>
+        <SiteFooter />
       </div>
     </main>
   );

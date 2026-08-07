@@ -18,6 +18,8 @@ export const en: Dictionary = {
     language: "Language",
     russian: "Русский",
     english: "English",
+    terms: "Terms",
+    privacy: "Privacy",
   },
   landing: {
     headline: "VLESS Manager",
@@ -119,6 +121,8 @@ export const en: Dictionary = {
     accountCreated:
       "Account created. Check your email to confirm, or sign in if confirmation is disabled.",
     authFailed: "Authentication failed",
+    legalNotice:
+      "By continuing, you agree to the Terms of Use and Privacy Policy.",
   },
   nav: {
     servers: "Servers",
@@ -207,7 +211,8 @@ export const en: Dictionary = {
     ],
     disclaimerTitle: "Disclaimer",
     disclaimerBody:
-      "You choose the provider, region, and how you use the service. Follow applicable laws and hosting terms. VLESS Manager is provided “as is” without warranties. Timeweb partner links are referrals — hosting is billed directly by the provider.",
+      "You choose the provider, region, and how you use the service. Follow applicable laws and hosting terms. VLESS Manager is provided “as is” without warranties. Timeweb partner links are referrals — hosting is billed directly by the provider. The operator is an individual (personal project); see Terms and Privacy for details.",
+    legalLinksTitle: "Legal",
   },
   partner: {
     title: "Get a VPS via Timeweb (partner link)",

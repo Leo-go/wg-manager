@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useI18n } from "@/lib/i18n/provider";
 
 export function AboutContent() {
@@ -37,6 +38,15 @@ export function AboutContent() {
       <section className="space-y-3 rounded-md border border-border bg-muted/30 p-4">
         <h2 className="text-lg font-semibold">{a.disclaimerTitle}</h2>
         <p className="text-sm text-muted-foreground">{a.disclaimerBody}</p>
+        <div className="flex flex-wrap gap-3 pt-1 text-sm">
+          <span className="text-muted-foreground">{a.legalLinksTitle}:</span>
+          <Link href="/terms" className="text-primary hover:underline">
+            {t.common.terms}
+          </Link>
+          <Link href="/privacy" className="text-primary hover:underline">
+            {t.common.privacy}
+          </Link>
+        </div>
       </section>
     </div>
   );

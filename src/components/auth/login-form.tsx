@@ -117,6 +117,17 @@ export function LoginForm() {
           </Button>
         </form>
 
+        <p className="text-center text-xs leading-relaxed text-muted-foreground">
+          {t.auth.legalNotice}{" "}
+          <Link href="/terms" className="underline underline-offset-2">
+            {t.common.terms}
+          </Link>
+          {" · "}
+          <Link href="/privacy" className="underline underline-offset-2">
+            {t.common.privacy}
+          </Link>
+        </p>
+
         <p className="text-center text-sm text-muted-foreground">
           {isSignUp ? t.auth.haveAccount : t.auth.noAccount}{" "}
           <button

@@ -20,6 +20,8 @@ export type Dictionary = {
     language: string;
     russian: string;
     english: string;
+    terms: string;
+    privacy: string;
   };
   landing: {
     headline: string;
@@ -67,6 +69,7 @@ export type Dictionary = {
     backHome: string;
     accountCreated: string;
     authFailed: string;
+    legalNotice: string;
   };
   nav: {
     servers: string;
@@ -134,6 +137,7 @@ export type Dictionary = {
     principles: { title: string; body: string }[];
     disclaimerTitle: string;
     disclaimerBody: string;
+    legalLinksTitle: string;
   };
   partner: {
     title: string;
