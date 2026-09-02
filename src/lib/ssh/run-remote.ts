@@ -12,6 +12,11 @@ function buildFullOutput(stdout: string, stderr: string): string {
   return [stdout.trim(), stderr.trim()].filter(Boolean).join("\n");
 }
 
+/** Strip CRLF from scripts piped over SSH (WSL/Windows checkout). */
+export function normalizeScriptLineEndings(content: string): string {
+  return content.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+}
+
 export function mapSshError(error: unknown): Error {
   const message = error instanceof Error ? error.message : String(error);
   if (/All configured authentication methods failed/i.test(message)) {
@@ -131,7 +136,8 @@ export async function runRemoteBashScript(opts: {
   const username = normalizeSshUsername(opts.username);
   const args = opts.args ?? [];
   const argSuffix = args.map(shellSingleQuote).join(" ");
-  const escapedScript = opts.scriptContent.replace(/'/g, `'\\''`);
+  const normalizedScript = normalizeScriptLineEndings(opts.scriptContent);
+  const escapedScript = normalizedScript.replace(/'/g, `'\\''`);
   const bashRunner =
     username === "root"
       ? "bash --noprofile --norc -s --"
