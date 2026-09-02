@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { buildClientLabel, swapVlessUuid } from "@/lib/bot/build-vless-url";
 import { readXrayClientManagerScript } from "@/lib/bot/config";
-import { resolveSshAuth } from "@/lib/ssh/auth";
+import { getBotSshUsername, resolveBotSshAuth } from "@/lib/bot/ssh-auth";
 import { runRemoteBashScript } from "@/lib/ssh/run-remote";
 import type { BotUser, Server } from "@/lib/supabase/types";
 
@@ -33,10 +33,7 @@ export async function runXrayClientAction(
   uuid?: string,
   email?: string
 ): Promise<string> {
-  const auth = resolveSshAuth({
-    sshPassword: server.ssh_password,
-    sshPrivateKey: server.ssh_private_key,
-  });
+  const auth = resolveBotSshAuth(server);
 
   const args: string[] = [action];
   if (uuid) args.push(uuid);
@@ -45,7 +42,7 @@ export async function runXrayClientAction(
   const result = await runRemoteBashScript({
     host: server.ip_address,
     port: server.ssh_port ?? 22,
-    username: server.ssh_username,
+    username: getBotSshUsername(server),
     auth,
     scriptContent: readXrayClientManagerScript(),
     args,
