@@ -1,7 +1,11 @@
 import { randomUUID } from "node:crypto";
+import { buildYandexCdnVlessUrl } from "@/lib/cdn/build-client-url";
 import { buildClientLabel, swapVlessUuid } from "@/lib/bot/build-vless-url";
 import { readXrayClientManagerScript } from "@/lib/bot/config";
-import { getBotSshUsername, resolveBotSshAuth } from "@/lib/bot/ssh-auth";
+import {
+  isCdnBotServer,
+  resolveBotProvisionTarget,
+} from "@/lib/bot/provision-target";
 import { runRemoteBashScript } from "@/lib/ssh/run-remote";
 import type { BotUser, Server } from "@/lib/supabase/types";
 
@@ -9,9 +13,10 @@ export type ProvisionedClient = {
   uuid: string;
   vlessConfigUrl: string;
   vlessTcpConfigUrl: string | null;
+  mode: "yandex_cdn" | "direct";
 };
 
-function pickTemplateUrls(server: Server): {
+function pickDirectTemplateUrls(server: Server): {
   primary: string;
   tcp: string | null;
 } {
@@ -27,23 +32,61 @@ function pickTemplateUrls(server: Server): {
   };
 }
 
+function pickCdnTemplateUrl(server: Server): string {
+  const template = server.cdn_vless_config_url?.trim();
+  if (template) return template;
+
+  if (!server.cdn_domain?.trim()) {
+    throw new Error("cdn_domain is missing on exit server");
+  }
+
+  const uuid = server.cdn_uuid?.trim() || "00000000-0000-4000-8000-000000000001";
+  return buildYandexCdnVlessUrl({
+    uuid,
+    cdnHost: server.cdn_domain.trim(),
+    path: (server.cdn_path as string) || "/api-test",
+    paddingKey: (server.cdn_padding_key as string) || "dc",
+  });
+}
+
+function buildClientUrls(
+  server: Server,
+  uuid: string
+): Pick<ProvisionedClient, "vlessConfigUrl" | "vlessTcpConfigUrl" | "mode"> {
+  if (isCdnBotServer(server)) {
+    return {
+      mode: "yandex_cdn",
+      vlessConfigUrl: swapVlessUuid(pickCdnTemplateUrl(server), uuid),
+      vlessTcpConfigUrl: null,
+    };
+  }
+
+  const templates = pickDirectTemplateUrls(server);
+  return {
+    mode: "direct",
+    vlessConfigUrl: swapVlessUuid(templates.primary, uuid),
+    vlessTcpConfigUrl: templates.tcp
+      ? swapVlessUuid(templates.tcp, uuid)
+      : null,
+  };
+}
+
 export async function runXrayClientAction(
   server: Server,
   action: "add" | "remove" | "list",
   uuid?: string,
   email?: string
 ): Promise<string> {
-  const auth = resolveBotSshAuth(server);
-
+  const target = resolveBotProvisionTarget(server);
   const args: string[] = [action];
   if (uuid) args.push(uuid);
   if (email) args.push(email);
 
   const result = await runRemoteBashScript({
-    host: server.ip_address,
-    port: server.ssh_port ?? 22,
-    username: getBotSshUsername(server),
-    auth,
+    host: target.ssh.host,
+    port: target.ssh.port,
+    username: target.ssh.username,
+    auth: target.ssh.auth,
     scriptContent: readXrayClientManagerScript(),
     args,
     readyTimeoutMs: 45_000,
@@ -51,7 +94,8 @@ export async function runXrayClientAction(
 
   if (result.code !== 0) {
     throw new Error(
-      result.fullOutput.trim() || `xray-client-manager ${action} failed`
+      result.fullOutput.trim() ||
+        `xray-client-manager ${action} failed on ${target.label}`
     );
   }
 
@@ -65,6 +109,12 @@ export async function provisionBotUserClient(
     "telegram_id" | "telegram_username" | "first_name" | "xray_uuid"
   >
 ): Promise<ProvisionedClient> {
+  if (!isCdnBotServer(server) && !server.vless_config_url?.trim()) {
+    throw new Error(
+      "Exit server has no CDN ready and no vless_config_url — finish Yandex CDN or VPN setup in dashboard"
+    );
+  }
+
   const uuid = user.xray_uuid?.trim() || randomUUID();
   const email = buildClientLabel(
     user.first_name,
@@ -74,13 +124,9 @@ export async function provisionBotUserClient(
 
   await runXrayClientAction(server, "add", uuid, email);
 
-  const templates = pickTemplateUrls(server);
   return {
     uuid,
-    vlessConfigUrl: swapVlessUuid(templates.primary, uuid),
-    vlessTcpConfigUrl: templates.tcp
-      ? swapVlessUuid(templates.tcp, uuid)
-      : null,
+    ...buildClientUrls(server, uuid),
   };
 }
 

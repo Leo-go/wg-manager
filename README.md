@@ -279,8 +279,8 @@ Friends-and-family VPN bot with manual donations, per-user VLESS keys, and a fun
 2. Create a bot via [@BotFather](https://t.me/BotFather).
 3. In `.env.local` / Vercel env:
    - `TELEGRAM_BOT_TOKEN`
-   - `TELEGRAM_BOT_SERVER_ID` — `servers.id` of your **RU relay** (or exit) with a completed `vless_config_url`
-   - `TELEGRAM_BOT_SSH_PASSWORD` — root password for that VPS (server-side only on Vercel, not stored in Supabase)
+   - `TELEGRAM_BOT_SERVER_ID` — `servers.id` of your **exit** with `cdn_status=ready` (Yandex CDN path)
+   - `TELEGRAM_BOT_SSH_PASSWORD` — root password of **CDN Origin** VPS (`cdn_origin_ip`), not exit/RU relay
    - `TELEGRAM_ADMIN_IDS` — your Telegram numeric user id(s), comma-separated
    - `TELEGRAM_DONATE_DETAILS` — SBP / card payment instructions
    - `TELEGRAM_SETUP_SECRET` — random string for one-time webhook registration

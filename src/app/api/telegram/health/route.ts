@@ -1,9 +1,11 @@
 import { getBotConfig } from "@/lib/bot/config";
 import { getVpnServer } from "@/lib/bot/db";
 import {
-  describeBotSshTarget,
-  getBotSshAuthMode,
-} from "@/lib/bot/ssh-auth";
+  describeBotProvisionTarget,
+  getBotProvisionMode,
+  isCdnBotServer,
+} from "@/lib/bot/provision-target";
+import { getBotSshAuthMode } from "@/lib/bot/ssh-auth";
 import { runXrayClientAction } from "@/lib/bot/xray-clients";
 
 export const runtime = "nodejs";
@@ -39,19 +41,24 @@ export async function GET(request: Request): Promise<Response> {
 
   try {
     const server = await getVpnServer(config.serverId);
-    const authMode = getBotSshAuthMode(server);
-    const target = describeBotSshTarget(server);
+    const provisionMode = getBotProvisionMode(server);
+    const target = describeBotProvisionTarget(server);
     const clients = await runXrayClientAction(server, "list");
 
     return Response.json({
       ok: true,
-      authMode,
+      provisionMode,
+      cdnReady: isCdnBotServer(server),
       target,
       server: {
         id: server.id,
         name: server.name,
         ip: server.ip_address,
         role: server.role,
+        cdnStatus: server.cdn_status,
+        cdnDomain: server.cdn_domain,
+        cdnOriginIp: server.cdn_origin_ip,
+        hasCdnUrl: Boolean(server.cdn_vless_config_url),
         hasVlessUrl: Boolean(server.vless_config_url),
       },
       auth: {
@@ -65,19 +72,19 @@ export async function GET(request: Request): Promise<Response> {
         .filter(Boolean),
     });
   } catch (error) {
-    let authMode: string | undefined;
+    let provisionMode: string | undefined;
     let target: string | undefined;
     try {
       const server = await getVpnServer(config.serverId);
-      authMode = getBotSshAuthMode(server);
-      target = describeBotSshTarget(server);
+      provisionMode = getBotProvisionMode(server);
+      target = describeBotProvisionTarget(server);
     } catch {
       // ignore secondary lookup errors
     }
 
     return Response.json({
       ok: false,
-      authMode,
+      provisionMode,
       target,
       auth: {
         sshPasswordConfigured,

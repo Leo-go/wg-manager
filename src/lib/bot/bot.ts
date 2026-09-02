@@ -9,9 +9,10 @@ import {
 } from "@/lib/bot/config";
 import { formatBotError } from "@/lib/bot/errors";
 import {
-  describeBotSshTarget,
-  getBotSshAuthMode,
-} from "@/lib/bot/ssh-auth";
+  describeBotProvisionTarget,
+  getBotProvisionMode,
+} from "@/lib/bot/provision-target";
+import { getBotSshAuthMode } from "@/lib/bot/ssh-auth";
 import {
   adminApproveKeyboard,
   donateKeyboard,
@@ -488,11 +489,13 @@ async function handleConnect(ctx: Context, config: BotConfig) {
     const hint = server
       ? [
           "",
-          `SSH: ${describeBotSshTarget(server)}`,
-          `Режим: ${getBotSshAuthMode(server)}`,
-          getBotSshAuthMode(server) === "platform_key"
-            ? "Добавьте TELEGRAM_BOT_SSH_PASSWORD в Vercel (Production) и Redeploy."
-            : "Проверьте пароль RU Relay в TELEGRAM_BOT_SSH_PASSWORD.",
+          `Режим: ${getBotProvisionMode(server)}`,
+          `SSH: ${describeBotProvisionTarget(server)}`,
+          getBotProvisionMode(server) === "yandex_cdn"
+            ? "TELEGRAM_BOT_SSH_PASSWORD = пароль CDN Origin (не exit и не RU relay)."
+            : getBotSshAuthMode(server) === "platform_key"
+              ? "Добавьте TELEGRAM_BOT_SSH_PASSWORD в Vercel (Production) и Redeploy."
+              : "Проверьте TELEGRAM_BOT_SSH_PASSWORD.",
         ].join("\n")
       : "";
     throw new Error(`${formatBotError(error)}${hint}`);
@@ -506,6 +509,10 @@ async function handleConnect(ctx: Context, config: BotConfig) {
 
   if (updated.vless_tcp_config_url) {
     lines.push("", "📶 Wi‑Fi fallback (TCP):", updated.vless_tcp_config_url);
+  }
+
+  if (updated.vless_config_url?.includes("WG-Yandex-CDN")) {
+    lines.push("", "🌐 Ключ через Yandex CDN (белые списки).");
   }
 
   lines.push(
