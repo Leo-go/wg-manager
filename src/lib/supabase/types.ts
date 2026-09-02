@@ -89,9 +89,12 @@ export type BotUser = {
   vless_tcp_config_url?: string | null;
   is_active: boolean;
   subscribed_until?: string | null;
+  renewal_reminder_sent_at?: string | null;
   created_at: string;
   updated_at: string;
 };
+
+export type DonationPaymentMethod = "manual" | "stars" | "admin";
 
 export type Donation = {
   id: string;
@@ -99,6 +102,9 @@ export type Donation = {
   amount_rub: number;
   month: string;
   status: DonationStatus;
+  payment_method?: DonationPaymentMethod | string | null;
+  stars_amount?: number | null;
+  telegram_payment_charge_id?: string | null;
   note?: string | null;
   confirmed_by?: number | null;
   created_at: string;

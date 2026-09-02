@@ -3,6 +3,8 @@ import {
   extendSubscriptionDays,
   type BotConfig,
 } from "@/lib/bot/config";
+import { activateSubscriptionForUser } from "@/lib/bot/payments";
+import { extendUserSubscription } from "@/lib/bot/subscriptions";
 import { createServiceClient } from "@/lib/supabase/admin";
 import type { BotUser, Donation, MonthlyGoal } from "@/lib/supabase/types";
 
@@ -68,6 +70,7 @@ export async function updateBotUser(
       | "vless_tcp_config_url"
       | "is_active"
       | "subscribed_until"
+      | "renewal_reminder_sent_at"
     >
   >
 ): Promise<BotUser> {
@@ -122,11 +125,25 @@ export async function confirmDonation(
 
   if (donationError) throw new Error(donationError.message);
 
+  const { data: existingUser, error: fetchUserError } = await supabase
+    .from("bot_users")
+    .select("*")
+    .eq("id", donation.bot_user_id)
+    .single();
+
+  if (fetchUserError) throw new Error(fetchUserError.message);
+
+  const subscribedUntil = extendUserSubscription(
+    existingUser as BotUser,
+    30
+  );
+
   const { data: user, error: userError } = await supabase
     .from("bot_users")
     .update({
-      subscribed_until: extendSubscriptionDays(30),
+      subscribed_until: subscribedUntil,
       is_active: true,
+      renewal_reminder_sent_at: null,
     })
     .eq("id", donation.bot_user_id)
     .select("*")
@@ -235,24 +252,13 @@ export async function setMonthlyGoal(
 }
 
 export async function grantSubscription(telegramId: number): Promise<BotUser> {
-  const supabase = createServiceClient();
   const existing = await getBotUserByTelegramId(telegramId);
 
   if (existing) {
-    const { data, error } = await supabase
-      .from("bot_users")
-      .update({
-        subscribed_until: extendSubscriptionDays(30),
-        is_active: true,
-      })
-      .eq("id", existing.id)
-      .select("*")
-      .single();
-
-    if (error) throw new Error(error.message);
-    return data as BotUser;
+    return activateSubscriptionForUser(existing, 30);
   }
 
+  const supabase = createServiceClient();
   const { data, error } = await supabase
     .from("bot_users")
     .insert({

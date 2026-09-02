@@ -299,6 +299,10 @@ Friends-and-family VPN bot with manual donations, per-user VLESS keys, and a fun
 | `/revoke <telegram_id>` | Remove Xray client and disable access |
 | `/setgoal <rub>` | Set monthly fundraising target |
 
+Phase 2 (cron daily 09:00 UTC): renewal reminders + auto-revoke expired VPN keys.
+
+Run `scripts/bot-phase2.sql` in Supabase. Set `CRON_SECRET` on Vercel for `/api/cron/bot-subscriptions`.
+
 Per-user UUIDs are added on the VPN server via `scripts/xray-client-manager.sh` over SSH (same credentials as dashboard setup).
 
 ---

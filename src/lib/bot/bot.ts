@@ -19,6 +19,12 @@ import {
   mainMenuKeyboard,
 } from "@/lib/bot/keyboards";
 import {
+  confirmStarsPayment,
+  notifyStarsPaymentSuccess,
+  parseStarsInvoicePayload,
+  sendStarsInvoice,
+} from "@/lib/bot/payments";
+import {
   confirmDonation,
   confirmDonationByTelegramId,
   createPendingDonation,
@@ -379,6 +385,10 @@ export function createBot(config: BotConfig): Bot {
         await handlePaid(ctx, config, bot);
         return;
       }
+      if (data === "action:pay_stars") {
+        await handlePayStars(ctx, config, bot);
+        return;
+      }
 
       if (data.startsWith("admin:approve:")) {
         if (!requireAdmin(ctx, config)) {
@@ -413,6 +423,49 @@ export function createBot(config: BotConfig): Bot {
     }
   });
 
+  bot.on("pre_checkout_query", async (ctx) => {
+    try {
+      parseStarsInvoicePayload(ctx.preCheckoutQuery.invoice_payload);
+      await ctx.answerPreCheckoutQuery(true);
+    } catch (error) {
+      await ctx.answerPreCheckoutQuery(false, {
+        error_message: formatBotError(error),
+      });
+    }
+  });
+
+  bot.on("message:successful_payment", async (ctx) => {
+    try {
+      const payment = ctx.message.successful_payment;
+      if (!payment || payment.currency !== "XTR") return;
+
+      const from = ctx.from;
+      if (!from) return;
+
+      const payload = parseStarsInvoicePayload(payment.invoice_payload);
+      if (payload.telegramId !== from.id) {
+        throw new Error("Payment user mismatch");
+      }
+
+      const user = await confirmStarsPayment({
+        botUserId: payload.botUserId,
+        telegramId: from.id,
+        starsAmount: payment.total_amount,
+        amountRub: config.suggestedDonationRub,
+        chargeId: payment.telegram_payment_charge_id,
+      });
+
+      await notifyStarsPaymentSuccess(
+        bot,
+        config,
+        from.id,
+        user.subscribed_until
+      );
+    } catch (error) {
+      await replyError(ctx, error);
+    }
+  });
+
   bot.catch((err) => {
     console.error("Telegram bot error:", err);
   });
@@ -424,11 +477,11 @@ function helpText(config: BotConfig): string {
   return [
     "❓ Помощь",
     "",
-    "1. Нажмите «Поддержать» и переведите взнос.",
-    "2. После подтверждения админом — «Подключиться».",
+    "1. Нажмите «Поддержать» → Stars ⭐ или СБП.",
+    "2. После оплаты — «Подключиться».",
     "3. Импортируйте ссылку в Hiddify / v2rayN / Streisand.",
     "",
-    `Рекомендуемый взнос: ${formatRub(config.suggestedDonationRub)} / месяц`,
+    `Stars: ${config.starsAmount} ⭐ / месяц · СБП: ${formatRub(config.suggestedDonationRub)}`,
     "",
     "Команды: /connect /donate /status /whoami /help",
   ].join("\n");
@@ -474,7 +527,7 @@ async function handleConnect(ctx: Context, config: BotConfig) {
         "",
         "Нажмите «Поддержать», переведите и отметьте «Я оплатил».",
       ].join("\n"),
-      { reply_markup: donateKeyboard() }
+      { reply_markup: donateKeyboard(config.starsAmount) }
     );
     return;
   }
@@ -531,14 +584,27 @@ async function handleDonate(ctx: Context, config: BotConfig) {
     [
       "💰 Поддержка VPN",
       "",
+      `⭐ Stars: ${config.starsAmount} — мгновенная активация`,
+      `💳 СБП: ${formatRub(config.suggestedDonationRub)} — ручное подтверждение`,
+      "",
       config.donateDetails,
-      "",
-      `Рекомендуемый взнос: ${formatRub(config.suggestedDonationRub)}`,
-      "",
-      "После перевода нажмите «Я оплатил» — админ подтвердит в течение дня.",
     ].join("\n"),
-    { reply_markup: donateKeyboard() }
+    { reply_markup: donateKeyboard(config.starsAmount) }
   );
+}
+
+async function handlePayStars(ctx: Context, config: BotConfig, bot: Bot) {
+  const from = ctx.from;
+  if (!from) return;
+
+  const user = await upsertBotUser({
+    telegram_id: from.id,
+    telegram_username: from.username,
+    first_name: from.first_name,
+    last_name: from.last_name,
+  });
+
+  await sendStarsInvoice(bot, from.id, config, user);
 }
 
 async function handleStatus(ctx: Context, config: BotConfig) {

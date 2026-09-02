@@ -11,8 +11,11 @@ export function mainMenuKeyboard(siteUrl: string): InlineKeyboard {
     .text("❓ Помощь", "action:help");
 }
 
-export function donateKeyboard(): InlineKeyboard {
-  return new InlineKeyboard().text("✅ Я оплатил", "action:paid");
+export function donateKeyboard(starsAmount: number): InlineKeyboard {
+  return new InlineKeyboard()
+    .text(`⭐ Оплатить Stars (${starsAmount})`, "action:pay_stars")
+    .row()
+    .text("✅ Я оплатил (СБП)", "action:paid");
 }
 
 export function adminApproveKeyboard(donationId: string): InlineKeyboard {

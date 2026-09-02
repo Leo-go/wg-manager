@@ -8,6 +8,8 @@ export type BotConfig = {
   donateDetails: string;
   suggestedDonationRub: number;
   monthlyGoalRub: number;
+  starsAmount: number;
+  reminderDaysBefore: number;
   siteUrl: string;
   webhookSecret?: string;
 };
@@ -29,6 +31,8 @@ export function getBotConfig(): BotConfig | null {
 
   const suggested = Number(process.env.TELEGRAM_SUGGESTED_DONATION_RUB ?? "150");
   const goal = Number(process.env.TELEGRAM_MONTHLY_GOAL_RUB ?? "2000");
+  const stars = Number(process.env.TELEGRAM_STARS_AMOUNT ?? "100");
+  const reminderDays = Number(process.env.TELEGRAM_REMINDER_DAYS ?? "3");
 
   return {
     token,
@@ -39,6 +43,9 @@ export function getBotConfig(): BotConfig | null {
       "Переведите 150 ₽ на СБП и нажмите «Я оплатил».",
     suggestedDonationRub: Number.isFinite(suggested) ? suggested : 150,
     monthlyGoalRub: Number.isFinite(goal) ? goal : 2000,
+    starsAmount: Number.isFinite(stars) && stars > 0 ? stars : 100,
+    reminderDaysBefore:
+      Number.isFinite(reminderDays) && reminderDays > 0 ? reminderDays : 3,
     siteUrl: (() => {
       const explicit = process.env.NEXT_PUBLIC_SITE_URL?.trim();
       if (explicit) return explicit.replace(/\/$/, "");
@@ -89,8 +96,26 @@ export function isSubscriptionActive(
   return new Date(subscribedUntil).getTime() > Date.now();
 }
 
-export function extendSubscriptionDays(days = 30): string {
-  const next = new Date();
-  next.setUTCDate(next.getUTCDate() + days);
-  return next.toISOString();
+export function extendSubscriptionDays(
+  days = 30,
+  currentUntil?: string | null
+): string {
+  const base = new Date();
+  if (currentUntil) {
+    const current = new Date(currentUntil);
+    if (!Number.isNaN(current.getTime()) && current.getTime() > base.getTime()) {
+      base.setTime(current.getTime());
+    }
+  }
+  base.setUTCDate(base.getUTCDate() + days);
+  return base.toISOString();
+}
+
+export function daysUntilExpiry(
+  subscribedUntil: string | null | undefined
+): number | null {
+  if (!subscribedUntil) return null;
+  const ms = new Date(subscribedUntil).getTime() - Date.now();
+  if (Number.isNaN(ms)) return null;
+  return Math.ceil(ms / (1000 * 60 * 60 * 24));
 }
