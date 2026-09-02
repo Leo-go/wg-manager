@@ -234,6 +234,39 @@ export async function setMonthlyGoal(
   return data as MonthlyGoal;
 }
 
+export async function grantSubscription(telegramId: number): Promise<BotUser> {
+  const supabase = createServiceClient();
+  const existing = await getBotUserByTelegramId(telegramId);
+
+  if (existing) {
+    const { data, error } = await supabase
+      .from("bot_users")
+      .update({
+        subscribed_until: extendSubscriptionDays(30),
+        is_active: true,
+      })
+      .eq("id", existing.id)
+      .select("*")
+      .single();
+
+    if (error) throw new Error(error.message);
+    return data as BotUser;
+  }
+
+  const { data, error } = await supabase
+    .from("bot_users")
+    .insert({
+      telegram_id: telegramId,
+      subscribed_until: extendSubscriptionDays(30),
+      is_active: true,
+    })
+    .select("*")
+    .single();
+
+  if (error) throw new Error(error.message);
+  return data as BotUser;
+}
+
 export async function rejectDonation(donationId: string): Promise<void> {
   const supabase = createServiceClient();
   const { error } = await supabase

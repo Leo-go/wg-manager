@@ -3,7 +3,7 @@ import path from "node:path";
 
 export type BotConfig = {
   token: string;
-  adminIds: number[];
+  adminIds: string[];
   serverId: string;
   donateDetails: string;
   suggestedDonationRub: number;
@@ -12,14 +12,12 @@ export type BotConfig = {
   webhookSecret?: string;
 };
 
-function parseAdminIds(raw: string | undefined): number[] {
+function parseAdminIds(raw: string | undefined): string[] {
   if (!raw?.trim()) return [];
   return raw
     .split(",")
     .map((s) => s.trim())
-    .filter(Boolean)
-    .map((s) => Number(s))
-    .filter((n) => Number.isFinite(n));
+    .filter(Boolean);
 }
 
 export function getBotConfig(): BotConfig | null {
@@ -52,8 +50,9 @@ export function getBotConfig(): BotConfig | null {
   };
 }
 
-export function isAdmin(telegramId: number, adminIds: number[]): boolean {
-  return adminIds.includes(telegramId);
+export function isAdmin(telegramId: number, adminIds: string[]): boolean {
+  const id = String(telegramId);
+  return adminIds.includes(id);
 }
 
 export function currentMonthMoscow(): string {

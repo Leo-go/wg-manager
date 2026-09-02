@@ -2,7 +2,7 @@ import { webhookCallback } from "grammy";
 import { getBot } from "@/lib/bot/bot";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 const handleUpdate = (() => {
   const bot = getBot();

@@ -15,6 +15,14 @@ if [ ! -f "$CONFIG" ]; then
   exit 1
 fi
 
+if ! command -v python3 >/dev/null 2>&1; then
+  apt-get update -qq 2>/dev/null || true
+  apt-get install -y -qq python3 2>/dev/null || {
+    echo "ERROR: python3 is required on the VPN server" >&2
+    exit 1
+  }
+fi
+
 export ACTION UUID EMAIL CONFIG
 
 python3 - << 'PY'
