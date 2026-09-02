@@ -269,6 +269,39 @@ scripts/
 
 ---
 
+## Telegram bot (shared VPN)
+
+Friends-and-family VPN bot with manual donations, per-user VLESS keys, and a funnel to the web app.
+
+### Setup
+
+1. Run `scripts/bot-tables.sql` in Supabase SQL Editor.
+2. Create a bot via [@BotFather](https://t.me/BotFather).
+3. In `.env.local` / Vercel env:
+   - `TELEGRAM_BOT_TOKEN`
+   - `TELEGRAM_BOT_SERVER_ID` — `servers.id` of your **RU relay** (or exit) with a completed `vless_config_url`
+   - `TELEGRAM_ADMIN_IDS` — your Telegram numeric user id(s), comma-separated
+   - `TELEGRAM_DONATE_DETAILS` — SBP / card payment instructions
+   - `TELEGRAM_SETUP_SECRET` — random string for one-time webhook registration
+4. Deploy, then register webhook:
+   ```
+   GET https://your-domain.com/api/telegram/set-webhook?secret=YOUR_SETUP_SECRET
+   ```
+5. Open the bot → `/start` → test donate + admin approve flow.
+
+### Admin commands
+
+| Command | Description |
+|---------|-------------|
+| `/users` | List bot users and subscription status |
+| `/approve <telegram_id>` | Confirm latest pending donation |
+| `/revoke <telegram_id>` | Remove Xray client and disable access |
+| `/setgoal <rub>` | Set monthly fundraising target |
+
+Per-user UUIDs are added on the VPN server via `scripts/xray-client-manager.sh` over SSH (same credentials as dashboard setup).
+
+---
+
 ## License
 
 Private / portfolio MVP — adjust as needed before publishing.

@@ -75,3 +75,40 @@ export type Server = {
   created_at: string;
   updated_at: string;
 };
+
+export type DonationStatus = "pending" | "confirmed" | "rejected";
+
+export type BotUser = {
+  id: string;
+  telegram_id: number;
+  telegram_username?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  xray_uuid?: string | null;
+  vless_config_url?: string | null;
+  vless_tcp_config_url?: string | null;
+  is_active: boolean;
+  subscribed_until?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Donation = {
+  id: string;
+  bot_user_id: string;
+  amount_rub: number;
+  month: string;
+  status: DonationStatus;
+  note?: string | null;
+  confirmed_by?: number | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type MonthlyGoal = {
+  month: string;
+  target_rub: number;
+  description?: string | null;
+  created_at: string;
+  updated_at: string;
+};

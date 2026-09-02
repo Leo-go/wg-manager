@@ -1,0 +1,97 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
+
+export type BotConfig = {
+  token: string;
+  adminIds: number[];
+  serverId: string;
+  donateDetails: string;
+  suggestedDonationRub: number;
+  monthlyGoalRub: number;
+  siteUrl: string;
+  webhookSecret?: string;
+};
+
+function parseAdminIds(raw: string | undefined): number[] {
+  if (!raw?.trim()) return [];
+  return raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((s) => Number(s))
+    .filter((n) => Number.isFinite(n));
+}
+
+export function getBotConfig(): BotConfig | null {
+  const token = process.env.TELEGRAM_BOT_TOKEN?.trim();
+  if (!token) return null;
+
+  const serverId = process.env.TELEGRAM_BOT_SERVER_ID?.trim();
+  if (!serverId) return null;
+
+  const suggested = Number(process.env.TELEGRAM_SUGGESTED_DONATION_RUB ?? "150");
+  const goal = Number(process.env.TELEGRAM_MONTHLY_GOAL_RUB ?? "2000");
+
+  return {
+    token,
+    adminIds: parseAdminIds(process.env.TELEGRAM_ADMIN_IDS),
+    serverId,
+    donateDetails:
+      process.env.TELEGRAM_DONATE_DETAILS?.trim() ||
+      "Переведите 150 ₽ на СБП и нажмите «Я оплатил».",
+    suggestedDonationRub: Number.isFinite(suggested) ? suggested : 150,
+    monthlyGoalRub: Number.isFinite(goal) ? goal : 2000,
+    siteUrl: (() => {
+      const explicit = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+      if (explicit) return explicit.replace(/\/$/, "");
+      const vercel = process.env.VERCEL_URL?.trim();
+      if (vercel) return `https://${vercel}`;
+      return "http://localhost:3000";
+    })(),
+    webhookSecret: process.env.TELEGRAM_WEBHOOK_SECRET?.trim() || undefined,
+  };
+}
+
+export function isAdmin(telegramId: number, adminIds: number[]): boolean {
+  return adminIds.includes(telegramId);
+}
+
+export function currentMonthMoscow(): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Moscow",
+    year: "numeric",
+    month: "2-digit",
+  }).format(new Date());
+}
+
+export function readXrayClientManagerScript(): string {
+  const scriptPath = path.join(
+    process.cwd(),
+    "scripts",
+    "xray-client-manager.sh"
+  );
+  return readFileSync(scriptPath, "utf8");
+}
+
+export function progressBar(ratio: number, width = 14): string {
+  const clamped = Math.max(0, Math.min(1, ratio));
+  const filled = Math.round(clamped * width);
+  return `${"█".repeat(filled)}${"░".repeat(width - filled)}`;
+}
+
+export function formatRub(amount: number): string {
+  return `${amount.toLocaleString("ru-RU")} ₽`;
+}
+
+export function isSubscriptionActive(
+  subscribedUntil: string | null | undefined
+): boolean {
+  if (!subscribedUntil) return false;
+  return new Date(subscribedUntil).getTime() > Date.now();
+}
+
+export function extendSubscriptionDays(days = 30): string {
+  const next = new Date();
+  next.setUTCDate(next.getUTCDate() + days);
+  return next.toISOString();
+}
