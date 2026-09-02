@@ -9,6 +9,10 @@ import {
 } from "@/lib/bot/config";
 import { formatBotError } from "@/lib/bot/errors";
 import {
+  describeBotSshTarget,
+  getBotSshAuthMode,
+} from "@/lib/bot/ssh-auth";
+import {
   adminApproveKeyboard,
   donateKeyboard,
   mainMenuKeyboard,
@@ -476,7 +480,24 @@ async function handleConnect(ctx: Context, config: BotConfig) {
 
   await ctx.reply("⏳ Генерирую ключ на сервере, подождите 10–30 сек…");
 
-  const updated = await ensureProvisioned(config, user);
+  let updated: Awaited<ReturnType<typeof ensureProvisioned>>;
+  try {
+    updated = await ensureProvisioned(config, user);
+  } catch (error) {
+    const server = await getVpnServer(config.serverId).catch(() => null);
+    const hint = server
+      ? [
+          "",
+          `SSH: ${describeBotSshTarget(server)}`,
+          `Режим: ${getBotSshAuthMode(server)}`,
+          getBotSshAuthMode(server) === "platform_key"
+            ? "Добавьте TELEGRAM_BOT_SSH_PASSWORD в Vercel (Production) и Redeploy."
+            : "Проверьте пароль RU Relay в TELEGRAM_BOT_SSH_PASSWORD.",
+        ].join("\n")
+      : "";
+    throw new Error(`${formatBotError(error)}${hint}`);
+  }
+
   const lines = [
     "🔌 Ваш ключ VPN:",
     "",

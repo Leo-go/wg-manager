@@ -7,22 +7,47 @@ import {
 } from "@/lib/ssh/auth";
 import type { Server } from "@/lib/supabase/types";
 
-/**
- * SSH auth for the Telegram bot only.
- * Prefers Vercel env credentials — never reads ssh_password from Supabase.
- *
- * Order:
- * 1. TELEGRAM_BOT_SSH_PASSWORD
- * 2. TELEGRAM_BOT_SSH_PRIVATE_KEY (+ optional TELEGRAM_BOT_SSH_PRIVATE_KEY_PASSPHRASE)
- * 3. WG_SSH_PRIVATE_KEY (platform deploy key)
- */
+export type BotSshAuthMode =
+  | "env_password"
+  | "env_key"
+  | "platform_key"
+  | "server_key"
+  | "none";
+
+function cleanEnvSecret(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  if (!trimmed) return undefined;
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    return trimmed.slice(1, -1);
+  }
+  return trimmed;
+}
+
+export function getBotSshAuthMode(server: Server): BotSshAuthMode {
+  if (cleanEnvSecret(process.env.TELEGRAM_BOT_SSH_PASSWORD)) return "env_password";
+  if (cleanEnvSecret(process.env.TELEGRAM_BOT_SSH_PRIVATE_KEY)) return "env_key";
+  if (process.env.WG_SSH_PRIVATE_KEY?.trim()) return "platform_key";
+  if (server.ssh_private_key?.trim()) return "server_key";
+  return "none";
+}
+
+export function describeBotSshTarget(server: Server): string {
+  const user = getBotSshUsername(server) || "root";
+  const port = server.ssh_port ?? 22;
+  return `${user}@${server.ip_address}:${port}`;
+}
+
+/** SSH auth for the Telegram bot only (see resolveBotSshAuth). */
 export function resolveBotSshAuth(server: Server): SshConnectAuth {
-  const envPassword = process.env.TELEGRAM_BOT_SSH_PASSWORD?.trim();
+  const envPassword = cleanEnvSecret(process.env.TELEGRAM_BOT_SSH_PASSWORD);
   if (envPassword) {
     return { type: "password", password: envPassword };
   }
 
-  const envKey = process.env.TELEGRAM_BOT_SSH_PRIVATE_KEY?.trim();
+  const envKey = cleanEnvSecret(process.env.TELEGRAM_BOT_SSH_PRIVATE_KEY);
   if (envKey) {
     const passphrase =
       process.env.TELEGRAM_BOT_SSH_PRIVATE_KEY_PASSPHRASE?.trim() || undefined;
