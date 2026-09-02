@@ -38,7 +38,7 @@ export async function runXrayClientAction(
     sshPrivateKey: server.ssh_private_key,
   });
 
-  const args = [action];
+  const args: string[] = [action];
   if (uuid) args.push(uuid);
   if (email) args.push(email);
 
