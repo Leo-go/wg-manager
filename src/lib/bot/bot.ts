@@ -20,6 +20,9 @@ import { getBotSshAuthMode } from "@/lib/bot/ssh-auth";
 import {
   downloadV2rayNgApk,
   getCachedV2rayNgFileId,
+  HAPP_IOS_APPSTORE_RU_URL,
+  HAPP_IOS_APPSTORE_URL,
+  HAPP_SITE_URL,
   iosHappGuideText,
   setCachedV2rayNgFileId,
   V2RAYN_RELEASES_URL,
@@ -30,6 +33,7 @@ import {
   afterConnectKeyboard,
   clientsKeyboard,
   donateKeyboard,
+  helpKeyboard,
   iosClientsKeyboard,
   mainMenuKeyboard,
 } from "@/lib/bot/keyboards";
@@ -219,7 +223,8 @@ export function createBot(config: BotConfig): Bot {
   bot.command("help", async (ctx) => {
     try {
       await ctx.reply(helpText(config), {
-        reply_markup: mainMenuKeyboard(config.siteUrl),
+        reply_markup: helpKeyboard(),
+        link_preview_options: { is_disabled: true },
       });
     } catch (error) {
       await replyError(ctx, error);
@@ -431,8 +436,27 @@ export function createBot(config: BotConfig): Bot {
       }
       if (data === "action:help") {
         await ctx.reply(helpText(config), {
-          reply_markup: mainMenuKeyboard(config.siteUrl),
+          reply_markup: helpKeyboard(),
+          link_preview_options: { is_disabled: true },
         });
+        return;
+      }
+      if (data === "action:clients") {
+        await ctx.reply(
+          [
+            "📲 Клиенты для нашего ключа",
+            "",
+            "Android — v2rayNG (кнопка APK ниже)",
+            "iOS — Happ (App Store / Happ+ для РФ)",
+            "Windows — v2rayN",
+            "",
+            "⚠️ Hiddify не использовать.",
+          ].join("\n"),
+          {
+            reply_markup: clientsKeyboard(),
+            link_preview_options: { is_disabled: true },
+          }
+        );
         return;
       }
       if (data === "action:download_android") {
@@ -543,17 +567,25 @@ function helpText(config: BotConfig): string {
   return [
     "❓ Помощь",
     "",
-    "1. Скачайте клиент:",
-    "   • Android — v2rayNG (кнопка в меню)",
-    "   • iOS — Happ (кнопка «🍎 iOS Happ»)",
+    "1. Скачайте клиент (кнопка «📲 Клиенты»):",
+    "   • Android — v2rayNG (APK из бота или GitHub)",
+    "   • iOS — Happ из App Store",
     "   • Windows — v2rayN",
     "2. «Поддержать» → Stars ⭐ или СБП.",
-    "3. После оплаты — «Подключиться».",
-    "4. Импорт ключа из буфера в клиент.",
+    "3. «Подключиться» → «📋 Скопировать ключ» (или нажмите на серый ключ).",
+    "4. В клиенте: импорт из буфера → Connect.",
     "",
-    "⚠️ Через Yandex CDN: v2rayNG / Happ / v2rayN. Не Hiddify.",
+    "🍎 iOS (Happ):",
+    "   • App Store: Happ - Proxy Utility",
+    "   • Если не находится с РФ Apple ID — Happ+",
+    "   • В Happ: «+» → вставить из буфера → включить",
+    `   • ${HAPP_IOS_APPSTORE_URL}`,
+    `   • РФ: ${HAPP_IOS_APPSTORE_RU_URL}`,
+    `   • Сайт: ${HAPP_SITE_URL}`,
     "",
-    `Stars: ${config.starsAmount} ⭐ / месяц · СБП: ${formatRub(config.suggestedDonationRub)}`,
+    "⚠️ Yandex CDN: только v2rayNG / Happ / v2rayN. Не Hiddify.",
+    "",
+    `Stars: ${config.starsAmount} ⭐ / мес · СБП: ${formatRub(config.suggestedDonationRub)}`,
     "",
     `Android: ${V2RAYNG_RELEASES_URL}`,
     `Windows: ${V2RAYN_RELEASES_URL}`,

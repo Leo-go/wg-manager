@@ -14,33 +14,35 @@ export function canUseCopyTextButton(text: string): boolean {
   return text.length > 0 && text.length <= TELEGRAM_COPY_TEXT_MAX;
 }
 
+/** Compact main menu — downloads live under «Клиенты». */
 export function mainMenuKeyboard(siteUrl: string): InlineKeyboard {
   return new InlineKeyboard()
     .text("🔌 Подключиться", "action:connect")
     .text("💰 Поддержать", "action:donate")
     .row()
-    .text("📱 Android", "action:download_android")
-    .text("🍎 iOS Happ", "action:download_ios")
-    .row()
+    .text("📲 Клиенты", "action:clients")
     .text("📊 Статус", "action:status")
-    .url("🛠 Создать свой VPN", `${siteUrl}/login?ref=telegram`)
     .row()
+    .url("🛠 Свой VPN", `${siteUrl}/login?ref=telegram`)
     .text("❓ Помощь", "action:help");
 }
 
+/** All download links in one place. */
 export function clientsKeyboard(): InlineKeyboard {
   return new InlineKeyboard()
-    .text("📱 Прислать APK (Android)", "action:download_android")
+    .text("📱 APK Android (v2rayNG)", "action:download_android")
+    .row()
+    .url("🍎 Happ iOS", HAPP_IOS_APPSTORE_URL)
+    .url("🍎 Happ+ РФ", HAPP_IOS_APPSTORE_RU_URL)
+    .row()
+    .url("💻 v2rayN Windows", V2RAYN_RELEASES_URL)
+    .url("🌐 happ.su", HAPP_SITE_URL)
     .row()
     .url("📱 v2rayNG GitHub", V2RAYNG_RELEASES_URL)
-    .url("💻 v2rayN Windows", V2RAYN_RELEASES_URL)
-    .row()
-    .url("🍎 Happ App Store", HAPP_IOS_APPSTORE_URL)
-    .url("🍎 Happ+ (РФ)", HAPP_IOS_APPSTORE_RU_URL)
-    .row()
-    .url("🌐 happ.su", HAPP_SITE_URL);
+    .text("« Назад", "action:help");
 }
 
+/** After key issue — only what you need next. */
 export function afterConnectKeyboard(vlessUrl?: string | null): InlineKeyboard {
   const kb = new InlineKeyboard();
 
@@ -51,16 +53,7 @@ export function afterConnectKeyboard(vlessUrl?: string | null): InlineKeyboard {
   }
 
   return kb
-    .text("📱 Android APK", "action:download_android")
-    .text("🍎 iOS Happ", "action:download_ios")
-    .row()
-    .url("📱 v2rayNG", V2RAYNG_RELEASES_URL)
-    .url("💻 v2rayN", V2RAYN_RELEASES_URL)
-    .row()
-    .url("🍎 Happ App Store", HAPP_IOS_APPSTORE_URL)
-    .url("🍎 Happ+ (РФ)", HAPP_IOS_APPSTORE_RU_URL)
-    .row()
-    .text("💰 Поддержать", "action:donate")
+    .text("📲 Клиенты", "action:clients")
     .text("❓ Помощь", "action:help");
 }
 
@@ -68,11 +61,21 @@ export function iosClientsKeyboard(): InlineKeyboard {
   return new InlineKeyboard()
     .url("🍎 App Store (Global)", HAPP_IOS_APPSTORE_URL)
     .row()
-    .url("🍎 App Store Happ+ (РФ)", HAPP_IOS_APPSTORE_RU_URL)
+    .url("🍎 Happ+ (РФ)", HAPP_IOS_APPSTORE_RU_URL)
     .row()
-    .url("🌐 Сайт happ.su", HAPP_SITE_URL)
+    .url("🌐 happ.su", HAPP_SITE_URL)
     .row()
-    .text("🔌 Подключиться", "action:connect");
+    .text("🔌 Подключиться", "action:connect")
+    .text("📲 Все клиенты", "action:clients");
+}
+
+export function helpKeyboard(): InlineKeyboard {
+  return new InlineKeyboard()
+    .text("📲 Клиенты", "action:clients")
+    .text("🍎 iOS Happ", "action:download_ios")
+    .row()
+    .text("🔌 Подключиться", "action:connect")
+    .text("💰 Поддержать", "action:donate");
 }
 
 export function donateKeyboard(starsAmount: number): InlineKeyboard {
