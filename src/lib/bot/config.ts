@@ -31,7 +31,7 @@ export function getBotConfig(): BotConfig | null {
   const serverId = process.env.TELEGRAM_BOT_SERVER_ID?.trim();
   if (!serverId) return null;
 
-  const suggested = Number(process.env.TELEGRAM_SUGGESTED_DONATION_RUB ?? "150");
+  const suggested = Number(process.env.TELEGRAM_SUGGESTED_DONATION_RUB ?? "100");
   const goal = Number(process.env.TELEGRAM_MONTHLY_GOAL_RUB ?? "2000");
   const stars = Number(process.env.TELEGRAM_STARS_AMOUNT ?? "100");
   const reminderDays = Number(process.env.TELEGRAM_REMINDER_DAYS ?? "3");
@@ -43,8 +43,8 @@ export function getBotConfig(): BotConfig | null {
     serverId,
     donateDetails:
       process.env.TELEGRAM_DONATE_DETAILS?.trim() ||
-      "Переведите 150 ₽ на СБП и нажмите «Я оплатил».",
-    suggestedDonationRub: Number.isFinite(suggested) ? suggested : 150,
+      "Переведите 100 ₽ на СБП и нажмите «Я оплатил».",
+    suggestedDonationRub: Number.isFinite(suggested) ? suggested : 100,
     monthlyGoalRub: Number.isFinite(goal) ? goal : 2000,
     starsAmount: Number.isFinite(stars) && stars > 0 ? stars : 100,
     reminderDaysBefore:
