@@ -14,7 +14,14 @@ import {
 } from "@/lib/bot/provision-target";
 import { getBotSshAuthMode } from "@/lib/bot/ssh-auth";
 import {
+  fetchLatestV2rayNgApk,
+  V2RAYN_RELEASES_URL,
+  V2RAYNG_RELEASES_URL,
+} from "@/lib/bot/clients";
+import {
   adminApproveKeyboard,
+  afterConnectKeyboard,
+  clientsKeyboard,
   donateKeyboard,
   mainMenuKeyboard,
 } from "@/lib/bot/keyboards";
@@ -381,6 +388,10 @@ export function createBot(config: BotConfig): Bot {
         });
         return;
       }
+      if (data === "action:download_android") {
+        await handleDownloadAndroid(ctx, bot);
+        return;
+      }
       if (data === "action:paid") {
         await handlePaid(ctx, config, bot);
         return;
@@ -477,11 +488,17 @@ function helpText(config: BotConfig): string {
   return [
     "❓ Помощь",
     "",
-    "1. Нажмите «Поддержать» → Stars ⭐ или СБП.",
-    "2. После оплаты — «Подключиться».",
-    "3. Импортируйте ссылку в Hiddify / v2rayN / Streisand.",
+    "1. Скачайте клиент: Android — v2rayNG, Windows — v2rayN.",
+    "2. Нажмите «Поддержать» → Stars ⭐ или СБП.",
+    "3. После оплаты — «Подключиться».",
+    "4. В клиенте: «+» → импорт из буфера обмена.",
+    "",
+    "⚠️ Через Yandex CDN работает только v2rayNG / v2rayN (не Hiddify).",
     "",
     `Stars: ${config.starsAmount} ⭐ / месяц · СБП: ${formatRub(config.suggestedDonationRub)}`,
+    "",
+    `Android: ${V2RAYNG_RELEASES_URL}`,
+    `Windows: ${V2RAYN_RELEASES_URL}`,
     "",
     "Команды: /connect /donate /status /whoami /help",
   ].join("\n");
@@ -570,13 +587,43 @@ async function handleConnect(ctx: Context, config: BotConfig) {
 
   lines.push(
     "",
-    "Скопируйте ссылку в Hiddify / v2rayN / Streisand.",
+    "Скопируйте ссылку и импортируйте в v2rayNG (Android) или v2rayN (Windows).",
+    "⚠️ Hiddify с этим ключом не работает.",
     `Подписка активна до: ${formatDate(updated.subscribed_until)}`
   );
 
   await ctx.reply(lines.join("\n"), {
-    reply_markup: mainMenuKeyboard(config.siteUrl),
+    reply_markup: afterConnectKeyboard(),
   });
+}
+
+async function handleDownloadAndroid(ctx: Context, bot: Bot) {
+  const chatId = ctx.chat?.id;
+  if (!chatId) return;
+
+  await ctx.reply("⏳ Прикрепляю свежий APK v2rayNG…");
+
+  try {
+    const apk = await fetchLatestV2rayNgApk();
+    await bot.api.sendDocument(chatId, apk.url, {
+      caption: [
+        `📱 v2rayNG ${apk.tag} (Android)`,
+        "",
+        "1. Установите APK (разрешите установку из неизвестных источников).",
+        "2. В боте нажмите «Подключиться» и скопируйте ключ.",
+        "3. В v2rayNG: «+» → Import config from clipboard.",
+      ].join("\n"),
+    });
+  } catch (error) {
+    console.error("Failed to send v2rayNG APK:", error);
+    await ctx.reply(
+      [
+        "Не удалось прикрепить APK прямо в чат.",
+        "Скачайте официальный релиз с GitHub (нужен arm64-v8a.apk):",
+      ].join("\n"),
+      { reply_markup: clientsKeyboard() }
+    );
+  }
 }
 
 async function handleDonate(ctx: Context, config: BotConfig) {
