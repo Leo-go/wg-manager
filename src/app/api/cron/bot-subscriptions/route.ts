@@ -1,4 +1,8 @@
 import { getBot } from "@/lib/bot/bot";
+import {
+  formatCapacityReport,
+  getBotCapacityStats,
+} from "@/lib/bot/capacity";
 import { getBotConfig } from "@/lib/bot/config";
 import { runSubscriptionMaintenance } from "@/lib/bot/subscriptions";
 
@@ -30,18 +34,38 @@ export async function GET(request: Request): Promise<Response> {
     );
   }
 
-  const result = await runSubscriptionMaintenance(config, async (telegramId, text) => {
-    await bot.api.sendMessage(telegramId, text, {
-      reply_markup: {
-        inline_keyboard: [
-          [
-            { text: "💰 Поддержать", callback_data: "action:donate" },
-            { text: "🔌 Подключиться", callback_data: "action:connect" },
+  const result = await runSubscriptionMaintenance(
+    config,
+    async (telegramId, text) => {
+      await bot.api.sendMessage(telegramId, text, {
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: "💰 Поддержать", callback_data: "action:donate" },
+              { text: "🔌 Подключиться", callback_data: "action:connect" },
+            ],
           ],
-        ],
-      },
-    });
-  });
+        },
+      });
+    }
+  );
 
-  return Response.json({ ok: true, ...result });
+  let capacityWarning: string | null = null;
+  try {
+    const capacity = await getBotCapacityStats(config);
+    if (capacity.nearLimit || capacity.atLimit) {
+      capacityWarning = formatCapacityReport(capacity);
+      await Promise.all(
+        config.adminIds.map((id) =>
+          bot.api
+            .sendMessage(Number(id), capacityWarning!)
+            .catch(() => undefined)
+        )
+      );
+    }
+  } catch (error) {
+    console.error("capacity check failed:", error);
+  }
+
+  return Response.json({ ok: true, capacityWarning, ...result });
 }

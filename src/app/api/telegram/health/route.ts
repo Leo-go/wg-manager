@@ -1,11 +1,11 @@
 import { getBotConfig } from "@/lib/bot/config";
+import { getBotCapacityStats } from "@/lib/bot/capacity";
 import { getVpnServer } from "@/lib/bot/db";
 import {
   describeBotProvisionTarget,
   getBotProvisionMode,
   isCdnBotServer,
 } from "@/lib/bot/provision-target";
-import { getBotSshAuthMode } from "@/lib/bot/ssh-auth";
 import { runXrayClientAction } from "@/lib/bot/xray-clients";
 
 export const runtime = "nodejs";
@@ -39,6 +39,13 @@ export async function GET(request: Request): Promise<Response> {
     process.env.TELEGRAM_BOT_SSH_PRIVATE_KEY?.trim()
   );
 
+  let capacity: Awaited<ReturnType<typeof getBotCapacityStats>> | null = null;
+  try {
+    capacity = await getBotCapacityStats(config);
+  } catch (error) {
+    console.error("capacity stats failed:", error);
+  }
+
   try {
     const server = await getVpnServer(config.serverId);
     const provisionMode = getBotProvisionMode(server);
@@ -50,6 +57,7 @@ export async function GET(request: Request): Promise<Response> {
       provisionMode,
       cdnReady: isCdnBotServer(server),
       target,
+      capacity,
       server: {
         id: server.id,
         name: server.name,
@@ -86,6 +94,7 @@ export async function GET(request: Request): Promise<Response> {
       ok: false,
       provisionMode,
       target,
+      capacity,
       auth: {
         sshPasswordConfigured,
         sshKeyConfigured,

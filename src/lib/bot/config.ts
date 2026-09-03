@@ -10,6 +10,8 @@ export type BotConfig = {
   monthlyGoalRub: number;
   starsAmount: number;
   reminderDaysBefore: number;
+  /** Soft cap for active subscribers before advising a second server. */
+  softUserLimit: number;
   siteUrl: string;
   webhookSecret?: string;
 };
@@ -33,6 +35,7 @@ export function getBotConfig(): BotConfig | null {
   const goal = Number(process.env.TELEGRAM_MONTHLY_GOAL_RUB ?? "2000");
   const stars = Number(process.env.TELEGRAM_STARS_AMOUNT ?? "100");
   const reminderDays = Number(process.env.TELEGRAM_REMINDER_DAYS ?? "3");
+  const softLimit = Number(process.env.TELEGRAM_BOT_SOFT_LIMIT ?? "40");
 
   return {
     token,
@@ -46,6 +49,8 @@ export function getBotConfig(): BotConfig | null {
     starsAmount: Number.isFinite(stars) && stars > 0 ? stars : 100,
     reminderDaysBefore:
       Number.isFinite(reminderDays) && reminderDays > 0 ? reminderDays : 3,
+    softUserLimit:
+      Number.isFinite(softLimit) && softLimit > 0 ? Math.floor(softLimit) : 40,
     siteUrl: (() => {
       const explicit = process.env.NEXT_PUBLIC_SITE_URL?.trim();
       if (explicit) return explicit.replace(/\/$/, "");

@@ -107,6 +107,13 @@ export const en: Dictionary = {
     disclaimer:
       "Use within applicable law. Hosting ads: Timeweb partner link — you pay the provider directly.",
   },
+  funnel: {
+    telegramTitle: "You came from the Telegram bot",
+    telegramBody:
+      "The shared friends-and-family VPN lives in the bot. Here you can build your own VPN on your VPS: buy a server, install Reality in minutes, get a QR.",
+    backToBot: "Back to the bot",
+    createOwnVpn: "Create your own VPN →",
+  },
   auth: {
     signIn: "Sign In",
     signUp: "Sign Up",

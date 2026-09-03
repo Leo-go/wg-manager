@@ -1,5 +1,9 @@
 import { Bot, type Context } from "grammy";
 import {
+  formatCapacityReport,
+  getBotCapacityStats,
+} from "@/lib/bot/capacity";
+import {
   formatRub,
   getBotConfig,
   isAdmin,
@@ -201,7 +205,7 @@ export function createBot(config: BotConfig): Bot {
 
   bot.command("connect", async (ctx) => {
     try {
-      await handleConnect(ctx, config);
+      await handleConnect(ctx, config, bot);
     } catch (error) {
       await replyError(ctx, error);
     }
@@ -229,7 +233,10 @@ export function createBot(config: BotConfig): Bot {
         await replyNotAdmin(ctx);
         return;
       }
-      const users = await listBotUsers();
+      const [users, capacity] = await Promise.all([
+        listBotUsers(),
+        getBotCapacityStats(config),
+      ]);
       const lines = users.slice(0, 30).map((u) => {
         const active = isSubscriptionActive(u.subscribed_until);
         const name = u.telegram_username
@@ -238,8 +245,25 @@ export function createBot(config: BotConfig): Bot {
         return `${active ? "✅" : "⏸"} ${name} (${u.telegram_id})`;
       });
       await ctx.reply(
-        lines.length ? lines.join("\n") : "Пока нет пользователей."
+        [
+          formatCapacityReport(capacity),
+          "",
+          lines.length ? lines.join("\n") : "Пока нет пользователей.",
+        ].join("\n")
       );
+    } catch (error) {
+      await replyError(ctx, error);
+    }
+  });
+
+  bot.command("capacity", async (ctx) => {
+    try {
+      if (!requireAdmin(ctx, config)) {
+        await replyNotAdmin(ctx);
+        return;
+      }
+      const capacity = await getBotCapacityStats(config);
+      await ctx.reply(formatCapacityReport(capacity));
     } catch (error) {
       await replyError(ctx, error);
     }
@@ -371,7 +395,7 @@ export function createBot(config: BotConfig): Bot {
 
     try {
       if (data === "action:connect") {
-        await handleConnect(ctx, config);
+        await handleConnect(ctx, config, bot);
         return;
       }
       if (data === "action:donate") {
@@ -514,7 +538,7 @@ function formatDate(iso: string | null | undefined): string {
   }).format(new Date(iso));
 }
 
-async function handleConnect(ctx: Context, config: BotConfig) {
+async function handleConnect(ctx: Context, config: BotConfig, bot: Bot) {
   const from = ctx.from;
   if (!from) return;
 
@@ -547,6 +571,26 @@ async function handleConnect(ctx: Context, config: BotConfig) {
       { reply_markup: donateKeyboard(config.starsAmount) }
     );
     return;
+  }
+
+  if (!user.xray_uuid) {
+    const capacity = await getBotCapacityStats(config);
+    if (capacity.atLimit) {
+      await ctx.reply(
+        [
+          "⚠️ Сейчас все soft-слоты на сервере заняты.",
+          `Активных: ${capacity.activeSubscribers} / ${capacity.softLimit}.`,
+          "",
+          "Напишите админу — добавим вместимость или выдадим доступ вручную.",
+        ].join("\n")
+      );
+      await notifyAdmins(
+        bot,
+        config,
+        `⚠️ Soft-лимит: пользователь ${user.telegram_id} не получил новый ключ (${capacity.activeSubscribers}/${capacity.softLimit}).`
+      );
+      return;
+    }
   }
 
   await ctx.reply("⏳ Генерирую ключ на сервере, подождите 10–30 сек…");

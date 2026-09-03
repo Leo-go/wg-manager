@@ -303,6 +303,10 @@ Phase 2 (cron daily 09:00 UTC): renewal reminders + auto-revoke expired VPN keys
 
 Run `scripts/bot-phase2.sql` in Supabase. Set `CRON_SECRET` on Vercel for `/api/cron/bot-subscriptions`.
 
+Phase 3 — funnel: bot button «Создать свой VPN» opens `/login?ref=telegram` with a banner explaining shared bot VPN vs self-serve VPS setup. Optional: `NEXT_PUBLIC_TELEGRAM_BOT_USERNAME` (e.g. `VIPpipaBot`) for «Вернуться в бот».
+
+Phase 4 — capacity: admin `/capacity` (and summary in `/users`) shows active subscribers vs soft limit (`TELEGRAM_BOT_SOFT_LIMIT`, default 40). Health JSON includes `capacity`. New keys are paused at the soft limit until you raise the limit or add another Origin/exit.
+
 Per-user UUIDs are added on the VPN server via `scripts/xray-client-manager.sh` over SSH (same credentials as dashboard setup).
 
 ---

@@ -56,6 +56,12 @@ export type Dictionary = {
     whitelistLinkLabel: string;
     disclaimer: string;
   };
+  funnel: {
+    telegramTitle: string;
+    telegramBody: string;
+    backToBot: string;
+    createOwnVpn: string;
+  };
   auth: {
     signIn: string;
     signUp: string;

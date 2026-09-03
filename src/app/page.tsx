@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { Suspense } from "react";
 import { LanguageSwitcher } from "@/components/i18n/language-switcher";
 import { ProductInfoContent } from "@/components/marketing/product-info-content";
 import { SiteFooter } from "@/components/marketing/site-footer";
+import { TelegramRefBanner } from "@/components/marketing/telegram-ref-banner";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/lib/i18n/provider";
 
@@ -20,6 +22,10 @@ export default function HomePage() {
           </span>
           <LanguageSwitcher compact />
         </header>
+
+        <Suspense fallback={null}>
+          <TelegramRefBanner />
+        </Suspense>
 
         <section className="space-y-6 text-center sm:text-left">
           <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">

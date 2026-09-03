@@ -106,6 +106,13 @@ export const ru: Dictionary = {
     disclaimer:
       "Используйте сервис в рамках закона. Реклама хостинга: партнёрская ссылка Timeweb — вы платите провайдеру напрямую.",
   },
+  funnel: {
+    telegramTitle: "Вы пришли из Telegram-бота",
+    telegramBody:
+      "Общий VPN для друзей — в боте. Здесь можно создать свой VPN на своём VPS: купите сервер, установите Reality за минуты и получите QR.",
+    backToBot: "Вернуться в бот",
+    createOwnVpn: "Создать свой VPN →",
+  },
   auth: {
     signIn: "Войти",
     signUp: "Регистрация",

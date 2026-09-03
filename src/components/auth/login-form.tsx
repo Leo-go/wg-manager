@@ -4,6 +4,7 @@ import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { TelegramRefBanner } from "@/components/marketing/telegram-ref-banner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useI18n } from "@/lib/i18n/provider";
@@ -59,6 +60,7 @@ export function LoginForm() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-md space-y-6 rounded-lg border border-border bg-card p-8 shadow-lg">
+        <TelegramRefBanner />
         <div className="space-y-2 text-center">
           <h1 className="text-2xl font-bold tracking-tight">
             {isSignUp ? t.auth.createAccount : t.auth.signIn}
