@@ -6,6 +6,29 @@ export const V2RAYNG_RELEASES_URL =
 export const V2RAYN_RELEASES_URL =
   "https://github.com/2dust/v2rayN/releases/latest";
 
+/** Happ — Proxy Utility (global App Store). */
+export const HAPP_IOS_APPSTORE_URL =
+  "https://apps.apple.com/app/happ-proxy-utility/id6504287215";
+
+/** Happ+ listing often used with RU Apple ID. */
+export const HAPP_IOS_APPSTORE_RU_URL =
+  "https://apps.apple.com/ru/app/happ-proxy-utility/id6783623643";
+
+export const HAPP_SITE_URL = "https://www.happ.su/main";
+
+export function iosHappGuideText(): string {
+  return [
+    "🍎 iOS: клиент Happ",
+    "",
+    "1. Установите «Happ - Proxy Utility» из App Store.",
+    "   Если не находится — откройте вариант для РФ (Happ+) по кнопке ниже.",
+    "2. В боте: «Подключиться» → скопируйте ключ.",
+    "3. В Happ: «+» → вставить из буфера → включить подключение.",
+    "",
+    "⚠️ Hiddify с нашим ключом (Yandex CDN) не используйте.",
+  ].join("\n");
+}
+
 type GithubAsset = {
   name: string;
   browser_download_url: string;

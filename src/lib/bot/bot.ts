@@ -20,6 +20,7 @@ import { getBotSshAuthMode } from "@/lib/bot/ssh-auth";
 import {
   downloadV2rayNgApk,
   getCachedV2rayNgFileId,
+  iosHappGuideText,
   setCachedV2rayNgFileId,
   V2RAYN_RELEASES_URL,
   V2RAYNG_RELEASES_URL,
@@ -29,6 +30,7 @@ import {
   afterConnectKeyboard,
   clientsKeyboard,
   donateKeyboard,
+  iosClientsKeyboard,
   mainMenuKeyboard,
 } from "@/lib/bot/keyboards";
 import {
@@ -418,6 +420,10 @@ export function createBot(config: BotConfig): Bot {
         await handleDownloadAndroid(ctx, bot);
         return;
       }
+      if (data === "action:download_ios") {
+        await handleDownloadIos(ctx);
+        return;
+      }
       if (data === "action:paid") {
         await handlePaid(ctx, config, bot);
         return;
@@ -514,12 +520,15 @@ function helpText(config: BotConfig): string {
   return [
     "❓ Помощь",
     "",
-    "1. Скачайте клиент: Android — v2rayNG, Windows — v2rayN.",
-    "2. Нажмите «Поддержать» → Stars ⭐ или СБП.",
+    "1. Скачайте клиент:",
+    "   • Android — v2rayNG (кнопка в меню)",
+    "   • iOS — Happ (кнопка «🍎 iOS Happ»)",
+    "   • Windows — v2rayN",
+    "2. «Поддержать» → Stars ⭐ или СБП.",
     "3. После оплаты — «Подключиться».",
-    "4. В клиенте: «+» → импорт из буфера обмена.",
+    "4. Импорт ключа из буфера в клиент.",
     "",
-    "⚠️ Через Yandex CDN работает только v2rayNG / v2rayN (не Hiddify).",
+    "⚠️ Через Yandex CDN: v2rayNG / Happ / v2rayN. Не Hiddify.",
     "",
     `Stars: ${config.starsAmount} ⭐ / месяц · СБП: ${formatRub(config.suggestedDonationRub)}`,
     "",
@@ -633,13 +642,22 @@ async function handleConnect(ctx: Context, config: BotConfig, bot: Bot) {
 
   lines.push(
     "",
-    "Скопируйте ссылку и импортируйте в v2rayNG (Android) или v2rayN (Windows).",
+    "Импортируйте ключ:",
+    "• Android — v2rayNG",
+    "• iOS — Happ",
+    "• Windows — v2rayN",
     "⚠️ Hiddify с этим ключом не работает.",
     `Подписка активна до: ${formatDate(updated.subscribed_until)}`
   );
 
   await ctx.reply(lines.join("\n"), {
     reply_markup: afterConnectKeyboard(),
+  });
+}
+
+async function handleDownloadIos(ctx: Context) {
+  await ctx.reply(iosHappGuideText(), {
+    reply_markup: iosClientsKeyboard(),
   });
 }
 
