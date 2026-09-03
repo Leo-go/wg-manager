@@ -59,6 +59,25 @@ import {
   revokeBotUserClient,
 } from "@/lib/bot/xray-clients";
 
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+/** Send VLESS URL as a tappable code block (Telegram copies on tap). */
+async function replyCopyableKey(
+  ctx: Context,
+  url: string,
+  label = "📋 Нажмите на ключ, чтобы скопировать:"
+): Promise<void> {
+  await ctx.reply(`${label}\n\n<code>${escapeHtml(url)}</code>`, {
+    parse_mode: "HTML",
+    link_preview_options: { is_disabled: true },
+  });
+}
+
 function welcomeText(config: BotConfig): string {
   return [
     "👋 Привет! Это VPN для нашей компании.",
@@ -424,6 +443,10 @@ export function createBot(config: BotConfig): Bot {
         await handleDownloadIos(ctx);
         return;
       }
+      if (data === "action:copy_key") {
+        await handleCopyKey(ctx);
+        return;
+      }
       if (data === "action:paid") {
         await handlePaid(ctx, config, bot);
         return;
@@ -626,33 +649,66 @@ async function handleConnect(ctx: Context, config: BotConfig, bot: Bot) {
     throw new Error(`${formatBotError(error)}${hint}`);
   }
 
-  const lines = [
-    "🔌 Ваш ключ VPN:",
+  const keyUrl = updated.vless_config_url?.trim() || "";
+
+  const header = [
+    "🔌 Ваш ключ VPN",
     "",
-    updated.vless_config_url ?? "—",
+    "Импорт: Android — v2rayNG · iOS — Happ · Windows — v2rayN",
+    "⚠️ Hiddify не использовать.",
+    `Подписка до: ${formatDate(updated.subscribed_until)}`,
   ];
 
-  if (updated.vless_tcp_config_url) {
-    lines.push("", "📶 Wi‑Fi fallback (TCP):", updated.vless_tcp_config_url);
-  }
-
   if (updated.vless_config_url?.includes("WG-Yandex-CDN")) {
-    lines.push("", "🌐 Ключ через Yandex CDN (белые списки).");
+    header.splice(2, 0, "🌐 Ключ через Yandex CDN.");
   }
 
-  lines.push(
-    "",
-    "Импортируйте ключ:",
-    "• Android — v2rayNG",
-    "• iOS — Happ",
-    "• Windows — v2rayN",
-    "⚠️ Hiddify с этим ключом не работает.",
-    `Подписка активна до: ${formatDate(updated.subscribed_until)}`
+  await ctx.reply(header.join("\n"), {
+    reply_markup: afterConnectKeyboard(keyUrl || null),
+  });
+
+  if (keyUrl) {
+    await replyCopyableKey(ctx, keyUrl);
+  } else {
+    await ctx.reply("Ключ не получен — напишите админу.");
+  }
+
+  if (updated.vless_tcp_config_url?.trim()) {
+    await replyCopyableKey(
+      ctx,
+      updated.vless_tcp_config_url.trim(),
+      "📶 Wi‑Fi fallback (TCP) — нажмите, чтобы скопировать:"
+    );
+  }
+}
+
+async function handleCopyKey(ctx: Context) {
+  const from = ctx.from;
+  if (!from) return;
+
+  const user = await getBotUserByTelegramId(from.id);
+  const url = user?.vless_config_url?.trim();
+
+  if (!url) {
+    await ctx.reply(
+      "Ключа пока нет. Нажмите «Подключиться», чтобы получить его."
+    );
+    return;
+  }
+
+  await replyCopyableKey(
+    ctx,
+    url,
+    "📋 Нажмите на ключ ниже — он скопируется в буфер:"
   );
 
-  await ctx.reply(lines.join("\n"), {
-    reply_markup: afterConnectKeyboard(),
-  });
+  if (user.vless_tcp_config_url?.trim()) {
+    await replyCopyableKey(
+      ctx,
+      user.vless_tcp_config_url.trim(),
+      "📶 TCP fallback — нажмите, чтобы скопировать:"
+    );
+  }
 }
 
 async function handleDownloadIos(ctx: Context) {
