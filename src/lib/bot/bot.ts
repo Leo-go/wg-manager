@@ -721,7 +721,7 @@ async function handleCopyKey(ctx: Context) {
   const user = await getBotUserByTelegramId(from.id);
   const url = user?.vless_config_url?.trim();
 
-  if (!url) {
+  if (!user || !url) {
     await ctx.reply(
       "Ключа пока нет. Нажмите «Подключиться», чтобы получить его."
     );
@@ -734,10 +734,11 @@ async function handleCopyKey(ctx: Context) {
     "📋 Нажмите на ключ ниже — он скопируется в буфер:"
   );
 
-  if (user.vless_tcp_config_url?.trim()) {
+  const tcpUrl = user.vless_tcp_config_url?.trim();
+  if (tcpUrl) {
     await replyCopyableKey(
       ctx,
-      user.vless_tcp_config_url.trim(),
+      tcpUrl,
       "📶 TCP fallback — нажмите, чтобы скопировать:"
     );
   }
