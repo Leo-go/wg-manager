@@ -1,3 +1,5 @@
+import { InputFile } from "grammy";
+
 export const V2RAYNG_RELEASES_URL =
   "https://github.com/2dust/v2rayNG/releases/latest";
 
@@ -17,6 +19,10 @@ type GithubRelease = {
 
 const BOT_DOCUMENT_MAX_BYTES = 49 * 1024 * 1024;
 
+/** Reuse Telegram file_id after first successful upload (warm instance / env). */
+let cachedApkFileId: string | null =
+  process.env.TELEGRAM_V2RAYNG_FILE_ID?.trim() || null;
+
 function pickAndroidApk(assets: GithubAsset[]): GithubAsset | null {
   const candidates = assets.filter(
     (a) =>
@@ -33,11 +39,12 @@ function pickAndroidApk(assets: GithubAsset[]): GithubAsset | null {
   );
 }
 
-/** Latest official v2rayNG arm64 APK from GitHub Releases. */
-export async function fetchLatestV2rayNgApk(): Promise<{
+/** Latest official v2rayNG arm64 APK metadata from GitHub Releases. */
+export async function fetchLatestV2rayNgApkMeta(): Promise<{
   url: string;
   name: string;
   tag: string;
+  size: number;
 }> {
   const res = await fetch(
     "https://api.github.com/repos/2dust/v2rayNG/releases/latest",
@@ -67,5 +74,59 @@ export async function fetchLatestV2rayNgApk(): Promise<{
     url: apk.browser_download_url,
     name: apk.name,
     tag: data.tag_name ?? "latest",
+    size: apk.size,
   };
+}
+
+/** Download APK bytes ourselves — Telegram often cannot fetch GitHub URLs. */
+export async function downloadV2rayNgApk(): Promise<{
+  file: InputFile;
+  name: string;
+  tag: string;
+}> {
+  const meta = await fetchLatestV2rayNgApkMeta();
+  const res = await fetch(meta.url, {
+    headers: {
+      Accept: "application/octet-stream",
+      "User-Agent": "vpn-saas-mvp-bot",
+    },
+    redirect: "follow",
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    throw new Error(`APK download: HTTP ${res.status}`);
+  }
+
+  const buffer = Buffer.from(await res.arrayBuffer());
+  if (buffer.byteLength < 1024) {
+    throw new Error("Скачанный APK пустой или слишком маленький");
+  }
+  if (buffer.byteLength > BOT_DOCUMENT_MAX_BYTES) {
+    throw new Error("APK слишком большой для отправки в Telegram");
+  }
+
+  return {
+    file: new InputFile(buffer, meta.name),
+    name: meta.name,
+    tag: meta.tag,
+  };
+}
+
+export function getCachedV2rayNgFileId(): string | null {
+  return cachedApkFileId;
+}
+
+export function setCachedV2rayNgFileId(fileId: string): void {
+  cachedApkFileId = fileId;
+}
+
+/** @deprecated use fetchLatestV2rayNgApkMeta */
+export async function fetchLatestV2rayNgApk(): Promise<{
+  url: string;
+  name: string;
+  tag: string;
+}> {
+  const meta = await fetchLatestV2rayNgApkMeta();
+  return { url: meta.url, name: meta.name, tag: meta.tag };
 }

@@ -307,6 +307,8 @@ Phase 3 — funnel: bot button «Создать свой VPN» opens `/login?ref
 
 Phase 4 — capacity: admin `/capacity` (and summary in `/users`) shows active subscribers vs soft limit (`TELEGRAM_BOT_SOFT_LIMIT`, default 40). Health JSON includes `capacity`. New keys are paused at the soft limit until you raise the limit or add another Origin/exit.
 
+Optional: after the bot successfully sends v2rayNG once, copy `file_id` from Vercel logs into `TELEGRAM_V2RAYNG_FILE_ID` so later downloads skip re-uploading the APK.
+
 Per-user UUIDs are added on the VPN server via `scripts/xray-client-manager.sh` over SSH (same credentials as dashboard setup).
 
 ---

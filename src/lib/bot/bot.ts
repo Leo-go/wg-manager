@@ -18,7 +18,9 @@ import {
 } from "@/lib/bot/provision-target";
 import { getBotSshAuthMode } from "@/lib/bot/ssh-auth";
 import {
-  fetchLatestV2rayNgApk,
+  downloadV2rayNgApk,
+  getCachedV2rayNgFileId,
+  setCachedV2rayNgFileId,
   V2RAYN_RELEASES_URL,
   V2RAYNG_RELEASES_URL,
 } from "@/lib/bot/clients";
@@ -647,9 +649,23 @@ async function handleDownloadAndroid(ctx: Context, bot: Bot) {
 
   await ctx.reply("⏳ Прикрепляю свежий APK v2rayNG…");
 
+  const caption = [
+    "📱 v2rayNG (Android)",
+    "",
+    "1. Установите APK (разрешите установку из неизвестных источников).",
+    "2. В боте нажмите «Подключиться» и скопируйте ключ.",
+    "3. В v2rayNG: «+» → Import config from clipboard.",
+  ].join("\n");
+
   try {
-    const apk = await fetchLatestV2rayNgApk();
-    await bot.api.sendDocument(chatId, apk.url, {
+    const cachedId = getCachedV2rayNgFileId();
+    if (cachedId) {
+      await bot.api.sendDocument(chatId, cachedId, { caption });
+      return;
+    }
+
+    const apk = await downloadV2rayNgApk();
+    const sent = await bot.api.sendDocument(chatId, apk.file, {
       caption: [
         `📱 v2rayNG ${apk.tag} (Android)`,
         "",
@@ -658,12 +674,20 @@ async function handleDownloadAndroid(ctx: Context, bot: Bot) {
         "3. В v2rayNG: «+» → Import config from clipboard.",
       ].join("\n"),
     });
+
+    const fileId = sent.document?.file_id;
+    if (fileId) {
+      setCachedV2rayNgFileId(fileId);
+      console.info(
+        `Cached v2rayNG file_id (set TELEGRAM_V2RAYNG_FILE_ID=${fileId} on Vercel to skip re-upload)`
+      );
+    }
   } catch (error) {
     console.error("Failed to send v2rayNG APK:", error);
     await ctx.reply(
       [
-        "Не удалось прикрепить APK прямо в чат.",
-        "Скачайте официальный релиз с GitHub (нужен arm64-v8a.apk):",
+        "Не удалось прикрепить APK прямо в чат (часто из‑за GitHub/размера).",
+        "Скачайте официальный релиз — файл *arm64-v8a.apk*:",
       ].join("\n"),
       { reply_markup: clientsKeyboard() }
     );
