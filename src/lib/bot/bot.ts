@@ -682,7 +682,7 @@ async function handleConnect(ctx: Context, config: BotConfig, bot: Bot) {
   const header = [
     "🔌 Ваш ключ VPN",
     "",
-    "Импорт: Android — v2rayNG · iOS — Happ · Windows — v2rayN",
+    "Импорт: Android — v2rayNG · iPhone — INCY · Windows — v2rayN",
     "⚠️ Hiddify не использовать.",
     `Подписка до: ${formatDate(updated.subscribed_until)}`,
   ];
