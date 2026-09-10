@@ -6,27 +6,34 @@ export const V2RAYNG_RELEASES_URL =
 export const V2RAYN_RELEASES_URL =
   "https://github.com/2dust/v2rayN/releases/latest";
 
-/** Happ — Proxy Utility (global App Store). */
+/** INCY — primary iOS client for RU App Store (works with our CDN key). */
+export const INCY_IOS_APPSTORE_URL =
+  "https://apps.apple.com/ru/app/incy/id6756943388";
+
+/** Happ — optional if you have a non-RU Apple ID / TestFlight. */
 export const HAPP_IOS_APPSTORE_URL =
   "https://apps.apple.com/app/happ-proxy-utility/id6504287215";
 
-/** Happ+ listing often used with RU Apple ID. */
-export const HAPP_IOS_APPSTORE_RU_URL =
-  "https://apps.apple.com/ru/app/happ-proxy-utility/id6783623643";
-
 export const HAPP_SITE_URL = "https://www.happ.su/main";
 
-export function iosHappGuideText(): string {
+export function iosGuideText(): string {
   return [
-    "🍎 iOS: клиент Happ",
+    "🍎 iPhone / iPad",
     "",
-    "1. Установите «Happ - Proxy Utility» из App Store.",
-    "   Если не находится — откройте вариант для РФ (Happ+) по кнопке ниже.",
-    "2. В боте: «Подключиться» → скопируйте ключ.",
-    "3. В Happ: «+» → вставить из буфера → включить подключение.",
+    "Основной клиент — INCY (есть в российском App Store):",
+    "1. Установите INCY по кнопке ниже.",
+    "2. В боте: «Подключиться» → скопируйте ключ (нажмите на серый текст).",
+    "3. В INCY: добавить / импорт из буфера → включить VPN.",
     "",
-    "⚠️ Hiddify с нашим ключом (Yandex CDN) не используйте.",
+    "Запасной вариант: Happ (часто недоступен в РФ App Store) — нужен зарубежный Apple ID или TestFlight с happ.su.",
+    "",
+    "⚠️ Hiddify с нашим ключом не используйте.",
   ].join("\n");
+}
+
+/** @deprecated use iosGuideText */
+export function iosHappGuideText(): string {
+  return iosGuideText();
 }
 
 type GithubAsset = {

@@ -1,8 +1,8 @@
 import { InlineKeyboard } from "grammy";
 import {
-  HAPP_IOS_APPSTORE_RU_URL,
   HAPP_IOS_APPSTORE_URL,
   HAPP_SITE_URL,
+  INCY_IOS_APPSTORE_URL,
   V2RAYN_RELEASES_URL,
   V2RAYNG_RELEASES_URL,
 } from "@/lib/bot/clients";
@@ -32,13 +32,12 @@ export function clientsKeyboard(): InlineKeyboard {
   return new InlineKeyboard()
     .text("📱 APK Android (v2rayNG)", "action:download_android")
     .row()
-    .url("🍎 Happ iOS", HAPP_IOS_APPSTORE_URL)
-    .url("🍎 Happ+ РФ", HAPP_IOS_APPSTORE_RU_URL)
+    .url("🍎 INCY iOS (РФ)", INCY_IOS_APPSTORE_URL)
+    .text("🍎 Гайд iOS", "action:download_ios")
     .row()
     .url("💻 v2rayN Windows", V2RAYN_RELEASES_URL)
-    .url("🌐 happ.su", HAPP_SITE_URL)
-    .row()
     .url("📱 v2rayNG GitHub", V2RAYNG_RELEASES_URL)
+    .row()
     .text("« Назад", "action:help");
 }
 
@@ -59,11 +58,11 @@ export function afterConnectKeyboard(vlessUrl?: string | null): InlineKeyboard {
 
 export function iosClientsKeyboard(): InlineKeyboard {
   return new InlineKeyboard()
-    .url("🍎 App Store (Global)", HAPP_IOS_APPSTORE_URL)
+    .url("🍎 INCY — App Store (РФ)", INCY_IOS_APPSTORE_URL)
     .row()
-    .url("🍎 Happ+ (РФ)", HAPP_IOS_APPSTORE_RU_URL)
+    .url("🍎 Happ (если есть зарубежный ID)", HAPP_IOS_APPSTORE_URL)
     .row()
-    .url("🌐 happ.su", HAPP_SITE_URL)
+    .url("🌐 happ.su / TestFlight", HAPP_SITE_URL)
     .row()
     .text("🔌 Подключиться", "action:connect")
     .text("📲 Все клиенты", "action:clients");
@@ -72,7 +71,7 @@ export function iosClientsKeyboard(): InlineKeyboard {
 export function helpKeyboard(): InlineKeyboard {
   return new InlineKeyboard()
     .text("📲 Клиенты", "action:clients")
-    .text("🍎 iOS Happ", "action:download_ios")
+    .text("🍎 iOS", "action:download_ios")
     .row()
     .text("🔌 Подключиться", "action:connect")
     .text("💰 Поддержать", "action:donate");

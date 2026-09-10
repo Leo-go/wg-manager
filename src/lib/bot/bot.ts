@@ -20,10 +20,8 @@ import { getBotSshAuthMode } from "@/lib/bot/ssh-auth";
 import {
   downloadV2rayNgApk,
   getCachedV2rayNgFileId,
-  HAPP_IOS_APPSTORE_RU_URL,
-  HAPP_IOS_APPSTORE_URL,
-  HAPP_SITE_URL,
-  iosHappGuideText,
+  INCY_IOS_APPSTORE_URL,
+  iosGuideText,
   setCachedV2rayNgFileId,
   V2RAYN_RELEASES_URL,
   V2RAYNG_RELEASES_URL,
@@ -447,7 +445,7 @@ export function createBot(config: BotConfig): Bot {
             "📲 Клиенты для нашего ключа",
             "",
             "Android — v2rayNG (кнопка APK ниже)",
-            "iOS — Happ (App Store / Happ+ для РФ)",
+            "iOS — INCY (российский App Store)",
             "Windows — v2rayN",
             "",
             "⚠️ Hiddify не использовать.",
@@ -569,21 +567,19 @@ function helpText(config: BotConfig): string {
     "",
     "1. Скачайте клиент (кнопка «📲 Клиенты»):",
     "   • Android — v2rayNG (APK из бота или GitHub)",
-    "   • iOS — Happ из App Store",
+    "   • iPhone — INCY (российский App Store)",
     "   • Windows — v2rayN",
     "2. «Поддержать» → Stars ⭐ или СБП.",
     "3. «Подключиться» → «📋 Скопировать ключ» (или нажмите на серый ключ).",
     "4. В клиенте: импорт из буфера → Connect.",
     "",
-    "🍎 iOS (Happ):",
-    "   • App Store: Happ - Proxy Utility",
-    "   • Если не находится с РФ Apple ID — Happ+",
-    "   • В Happ: «+» → вставить из буфера → включить",
-    `   • ${HAPP_IOS_APPSTORE_URL}`,
-    `   • РФ: ${HAPP_IOS_APPSTORE_RU_URL}`,
-    `   • Сайт: ${HAPP_SITE_URL}`,
+    "🍎 iPhone (INCY):",
+    "   • Ставится из РФ App Store без смены региона",
+    "   • В INCY: импорт из буфера → включить VPN",
+    `   • ${INCY_IOS_APPSTORE_URL}`,
+    "   • Запасной: Happ (часто удалён из РФ) — зарубежный Apple ID / TestFlight",
     "",
-    "⚠️ Yandex CDN: только v2rayNG / Happ / v2rayN. Не Hiddify.",
+    "⚠️ Yandex CDN: v2rayNG / INCY / v2rayN. Не Hiddify.",
     "",
     `Stars: ${config.starsAmount} ⭐ / мес · СБП: ${formatRub(config.suggestedDonationRub)}`,
     "",
@@ -745,8 +741,9 @@ async function handleCopyKey(ctx: Context) {
 }
 
 async function handleDownloadIos(ctx: Context) {
-  await ctx.reply(iosHappGuideText(), {
+  await ctx.reply(iosGuideText(), {
     reply_markup: iosClientsKeyboard(),
+    link_preview_options: { is_disabled: true },
   });
 }
 
