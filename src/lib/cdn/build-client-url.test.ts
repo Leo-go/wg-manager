@@ -1,5 +1,23 @@
 import { describe, expect, it } from "vitest";
-import { buildYandexCdnVlessUrl } from "@/lib/cdn/build-client-url";
+import {
+  buildYandexCdnVlessUrl,
+  normalizeCdnClientHost,
+} from "@/lib/cdn/build-client-url";
+
+describe("normalizeCdnClientHost", () => {
+  it("adds www to apex domains", () => {
+    expect(normalizeCdnClientHost("wg-manager.online")).toBe(
+      "www.wg-manager.online"
+    );
+  });
+
+  it("keeps existing www and subdomains", () => {
+    expect(normalizeCdnClientHost("www.wg-manager.online")).toBe(
+      "www.wg-manager.online"
+    );
+    expect(normalizeCdnClientHost("cdn.example.com")).toBe("cdn.example.com");
+  });
+});
 
 describe("buildYandexCdnVlessUrl", () => {
   it("builds a vless URL with encoded path and CDN host", () => {
@@ -10,9 +28,11 @@ describe("buildYandexCdnVlessUrl", () => {
       paddingKey: "dc",
     });
 
-    expect(url.startsWith("vless://11111111-1111-1111-1111-111111111111@cdn.example.com:443?")).toBe(
-      true
-    );
+    expect(
+      url.startsWith(
+        "vless://11111111-1111-1111-1111-111111111111@cdn.example.com:443?"
+      )
+    ).toBe(true);
     expect(url).toContain("security=tls");
     expect(url).toContain("sni=cdn.example.com");
     expect(url).toContain("host=cdn.example.com");
@@ -32,5 +52,17 @@ describe("buildYandexCdnVlessUrl", () => {
     };
     expect(extra.xPaddingKey).toBe("dc");
     expect(extra.uplinkHTTPMethod).toBe("OPTIONS");
+  });
+
+  it("normalizes apex CDN host to www in the URL", () => {
+    const url = buildYandexCdnVlessUrl({
+      uuid: "11111111-1111-1111-1111-111111111111",
+      cdnHost: "wg-manager.online",
+      path: "/api-test",
+      paddingKey: "dc",
+    });
+    expect(url).toContain("@www.wg-manager.online:443?");
+    expect(url).toContain("sni=www.wg-manager.online");
+    expect(url).toContain("host=www.wg-manager.online");
   });
 });

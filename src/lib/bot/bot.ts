@@ -59,6 +59,8 @@ import {
 import {
   provisionBotUserClient,
   revokeBotUserClient,
+  buildClientUrls,
+  botCdnUrlNeedsHostRefresh,
 } from "@/lib/bot/xray-clients";
 
 function escapeHtml(text: string): string {
@@ -157,11 +159,19 @@ async function ensureProvisioned(
 ) {
   if (!user) throw new Error("User not found");
 
+  const server = await getVpnServer(config.serverId);
+
   if (user.vless_config_url && user.xray_uuid) {
+    if (botCdnUrlNeedsHostRefresh(user.vless_config_url, server)) {
+      const urls = buildClientUrls(server, user.xray_uuid);
+      return updateBotUser(user.id, {
+        vless_config_url: urls.vlessConfigUrl,
+        vless_tcp_config_url: urls.vlessTcpConfigUrl,
+      });
+    }
     return user;
   }
 
-  const server = await getVpnServer(config.serverId);
   const provisioned = await provisionBotUserClient(server, user);
   return updateBotUser(user.id, {
     xray_uuid: provisioned.uuid,

@@ -1,5 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { buildYandexCdnVlessUrl } from "@/lib/cdn/build-client-url";
+import {
+  buildYandexCdnVlessUrl,
+  normalizeCdnClientHost,
+} from "@/lib/cdn/build-client-url";
 import { buildClientLabel, swapVlessUuid } from "@/lib/bot/build-vless-url";
 import { readXrayClientManagerScript } from "@/lib/bot/config";
 import {
@@ -32,10 +35,8 @@ function pickDirectTemplateUrls(server: Server): {
   };
 }
 
+/** Always build from cdn_* fields so host gets www-normalization. */
 function pickCdnTemplateUrl(server: Server): string {
-  const template = server.cdn_vless_config_url?.trim();
-  if (template) return template;
-
   if (!server.cdn_domain?.trim()) {
     throw new Error("cdn_domain is missing on exit server");
   }
@@ -44,12 +45,12 @@ function pickCdnTemplateUrl(server: Server): string {
   return buildYandexCdnVlessUrl({
     uuid,
     cdnHost: server.cdn_domain.trim(),
-    path: (server.cdn_path as string) || "/api-test",
-    paddingKey: (server.cdn_padding_key as string) || "dc",
+    path: server.cdn_path?.trim() || "/api-test",
+    paddingKey: server.cdn_padding_key?.trim() || "dc",
   });
 }
 
-function buildClientUrls(
+export function buildClientUrls(
   server: Server,
   uuid: string
 ): Pick<ProvisionedClient, "vlessConfigUrl" | "vlessTcpConfigUrl" | "mode"> {
@@ -69,6 +70,20 @@ function buildClientUrls(
       ? swapVlessUuid(templates.tcp, uuid)
       : null,
   };
+}
+
+/** True if stored key host differs from normalized CDN host (e.g. missing www). */
+export function botCdnUrlNeedsHostRefresh(
+  vlessConfigUrl: string | null | undefined,
+  server: Server
+): boolean {
+  if (!isCdnBotServer(server) || !vlessConfigUrl?.trim() || !server.cdn_domain) {
+    return false;
+  }
+  const expected = normalizeCdnClientHost(server.cdn_domain);
+  const match = vlessConfigUrl.trim().match(/^vless:\/\/[^@]+@([^:?/]+)/i);
+  const currentHost = match?.[1]?.toLowerCase();
+  return Boolean(currentHost && currentHost !== expected);
 }
 
 export async function runXrayClientAction(
