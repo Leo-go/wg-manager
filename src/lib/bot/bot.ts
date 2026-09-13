@@ -313,11 +313,11 @@ export function createBot(config: BotConfig): Bot {
       }
       const targetId = Number(ctx.match);
       if (!Number.isFinite(targetId)) {
-        await ctx.reply("Использование: /grant <telegram_id>");
+        await ctx.reply("Использование: /grant <telegram_id> — доступ на 30 дней");
         return;
       }
 
-      const user = await grantSubscription(targetId);
+      const user = await grantSubscription(targetId, 30);
       await ctx.reply(
         `✅ Доступ выдан ${targetId} до ${formatDate(user.subscribed_until)}`
       );
@@ -325,6 +325,74 @@ export function createBot(config: BotConfig): Bot {
         .sendMessage(
           targetId,
           "✅ Вам выдан доступ! Нажмите «Подключиться» для получения ключа.",
+          { reply_markup: mainMenuKeyboard(config.siteUrl) }
+        )
+        .catch(() => undefined);
+    } catch (error) {
+      await replyError(ctx, error);
+    }
+  });
+
+  bot.command("trial", async (ctx) => {
+    try {
+      if (!requireAdmin(ctx, config)) {
+        await replyNotAdmin(ctx);
+        return;
+      }
+      const targetId = Number(ctx.match);
+      if (!Number.isFinite(targetId)) {
+        await ctx.reply(
+          [
+            "Использование: /trial <telegram_id>",
+            "",
+            "Выдаёт доступ на 3 дня, сразу генерирует ключ и присылает его вам — можно переслать в ВК / почту.",
+            "Telegram ID человек узнаёт в боте командой /whoami (если Telegram хоть раз открывался).",
+          ].join("\n")
+        );
+        return;
+      }
+
+      await ctx.reply(`⏳ Trial 3 дня для ${targetId}: выдаю доступ и ключ…`);
+
+      const user = await grantSubscription(targetId, 3);
+      const server = await getVpnServer(config.serverId);
+      const provisioned = await provisionBotUserClient(server, user);
+      const updated = await updateBotUser(user.id, {
+        xray_uuid: provisioned.uuid,
+        vless_config_url: provisioned.vlessConfigUrl,
+        vless_tcp_config_url: provisioned.vlessTcpConfigUrl,
+        is_active: true,
+      });
+
+      const keyUrl = updated.vless_config_url?.trim() || "";
+      await ctx.reply(
+        [
+          `✅ Trial на 3 дня: ${targetId}`,
+          `Подписка до: ${formatDate(updated.subscribed_until)}`,
+          "",
+          "Перешлите человеку APK (v2rayNG) + ключ ниже.",
+          "Когда появится Telegram — пусть зайдёт в бота и продлит через «Поддержать».",
+        ].join("\n")
+      );
+
+      if (keyUrl) {
+        await replyCopyableKey(
+          ctx,
+          keyUrl,
+          "📋 Trial-ключ — нажмите, чтобы скопировать:"
+        );
+      } else {
+        await ctx.reply("❌ Ключ не сгенерировался — проверьте /api/telegram/health");
+      }
+
+      await bot.api
+        .sendMessage(
+          targetId,
+          [
+            "✅ Вам выдан пробный доступ на 3 дня.",
+            "Нажмите «Подключиться», если ключ ещё не получили другим каналом.",
+            "Потом «Поддержать» (100 ₽), чтобы продлить.",
+          ].join("\n"),
           { reply_markup: mainMenuKeyboard(config.siteUrl) }
         )
         .catch(() => undefined);

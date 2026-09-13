@@ -251,11 +251,14 @@ export async function setMonthlyGoal(
   return data as MonthlyGoal;
 }
 
-export async function grantSubscription(telegramId: number): Promise<BotUser> {
+export async function grantSubscription(
+  telegramId: number,
+  days = 30
+): Promise<BotUser> {
   const existing = await getBotUserByTelegramId(telegramId);
 
   if (existing) {
-    return activateSubscriptionForUser(existing, 30);
+    return activateSubscriptionForUser(existing, days);
   }
 
   const supabase = createServiceClient();
@@ -263,7 +266,7 @@ export async function grantSubscription(telegramId: number): Promise<BotUser> {
     .from("bot_users")
     .insert({
       telegram_id: telegramId,
-      subscribed_until: extendSubscriptionDays(30),
+      subscribed_until: extendSubscriptionDays(days),
       is_active: true,
     })
     .select("*")

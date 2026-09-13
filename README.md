@@ -295,9 +295,12 @@ Friends-and-family VPN bot with manual donations, per-user VLESS keys, and a fun
 | Command | Description |
 |---------|-------------|
 | `/users` | List bot users and subscription status |
+| `/grant <telegram_id>` | Give 30 days access |
+| `/trial <telegram_id>` | Give 3-day trial, generate key, send key to admin (for VK/email bootstrap) |
 | `/approve <telegram_id>` | Confirm latest pending donation |
 | `/revoke <telegram_id>` | Remove Xray client and disable access |
 | `/setgoal <rub>` | Set monthly fundraising target |
+| `/capacity` | Soft capacity / active subscribers |
 
 Phase 2 (cron daily 09:00 UTC): renewal reminders + auto-revoke expired VPN keys.
 
