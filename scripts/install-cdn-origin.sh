@@ -85,6 +85,8 @@ server {
     listen 80;
     listen [::]:80;
     server_name ${ORIGIN_HOST};
+    access_log off;
+    error_log /var/log/nginx/origin-error.log warn;
 
     location ^~ /.well-known/acme-challenge/ {
         root /var/www/acme;
@@ -130,6 +132,11 @@ cat > /usr/local/etc/xray/config.json <<EOF
           "xPaddingMethod": "tokenish",
           "xPaddingPlacement": "queryInHeader"
         }
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": ["http", "tls", "quic"],
+        "routeOnly": true
       }
     }
   ],
@@ -165,32 +172,72 @@ cat > /usr/local/etc/xray/config.json <<EOF
     { "tag": "block", "protocol": "blackhole" }
   ],
   "routing": {
-    "domainStrategy": "AsIs",
+    "domainStrategy": "IPIfNonMatch",
     "rules": [
-      {
-        "type": "field",
-        "inboundTag": ["from-yandex-cdn"],
-        "ip": ["geoip:private", "geoip:ru"],
-        "outboundTag": "direct"
-      },
       {
         "type": "field",
         "inboundTag": ["from-yandex-cdn"],
         "domain": [
           "geosite:category-ru",
+          "geosite:yandex",
+          "geosite:cn",
           "domain:gosuslugi.ru",
           "domain:esia.gosuslugi.ru",
+          "domain:mos.ru",
           "domain:vk.com",
           "domain:vk.ru",
           "domain:vkvideo.ru",
+          "domain:userapi.com",
           "domain:mail.ru",
           "domain:ok.ru",
           "domain:rutube.ru",
           "domain:avito.ru",
           "domain:yandex.ru",
           "domain:ya.ru",
-          "domain:dzen.ru"
+          "domain:yandex.net",
+          "domain:yandex.com",
+          "domain:dzen.ru",
+          "domain:sberbank.ru",
+          "domain:tinkoff.ru",
+          "domain:wildberries.ru",
+          "domain:ozon.ru",
+          "domain:dns-shop.ru",
+          "domain:2gis.ru",
+          "domain:hh.ru",
+          "domain:huawei.com",
+          "domain:vmall.com",
+          "domain:hicloud.com",
+          "domain:dbankcloud.com",
+          "domain:appgallery.huawei.com",
+          "domain:mi.com",
+          "domain:xiaomi.com",
+          "domain:xiaomi.net",
+          "domain:miui.com",
+          "domain:app.mi.com",
+          "domain:global.app.mi.com",
+          "domain:deepseek.com",
+          "domain:qwen.ai",
+          "domain:qwenlm.ai",
+          "domain:qwen.com",
+          "domain:qianwen.com",
+          "domain:chat.qwen.ai",
+          "domain:tongyi.aliyun.com",
+          "domain:aliyun.com",
+          "domain:aliyuncs.com",
+          "domain:alibabacloud.com",
+          "domain:alibaba.com",
+          "domain:alicdn.com",
+          "domain:mmstat.com",
+          "domain:taobao.com",
+          "domain:dashscope.aliyuncs.com",
+          "domain:maas.aliyuncs.com"
         ],
+        "outboundTag": "direct"
+      },
+      {
+        "type": "field",
+        "inboundTag": ["from-yandex-cdn"],
+        "ip": ["geoip:private", "geoip:ru", "geoip:cn"],
         "outboundTag": "direct"
       },
       { "type": "field", "inboundTag": ["from-yandex-cdn"], "outboundTag": "to-exit" }
@@ -221,6 +268,8 @@ server {
     listen 80;
     listen [::]:80;
     server_name ${ORIGIN_HOST};
+    access_log off;
+    error_log /var/log/nginx/origin-error.log warn;
 
     location ^~ /.well-known/acme-challenge/ {
         root /var/www/acme;
@@ -235,6 +284,8 @@ server {
     listen 443 ssl http2;
     listen [::]:443 ssl http2;
     server_name ${ORIGIN_HOST};
+    access_log off;
+    error_log /var/log/nginx/origin-error.log warn;
 
     ssl_certificate     /etc/letsencrypt/live/${ORIGIN_HOST}/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/${ORIGIN_HOST}/privkey.pem;
