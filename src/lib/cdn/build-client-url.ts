@@ -23,14 +23,14 @@ export function normalizeCdnClientHost(raw: string): string {
   return host;
 }
 
-/** Yandex CDN HTTP/2 edges return 413 on 1MB xHTTP posts + padding headers. */
+/** Yandex CDN HTTP/2 edges return 413 on Happ's default 1MB xHTTP posts. */
 export const CDN_XHTTP_MAX_POST_BYTES = 262_144;
 
-/** True if a stored CDN vless:// still uses HTTP/2 or 1MB posts. */
+/** True if a stored CDN vless:// still uses HTTP/1.1 ALPN or Happ's 1MB post default. */
 export function cdnVlessUrlNeedsXhttpRefresh(url: string): boolean {
-  const hasHttp11 = /[?&]alpn=http(?:%2F|\/)1\.1(?:&|#|$)/i.test(url);
-  if (!hasHttp11) return true;
-  return url.includes("1000000");
+  if (/[?&]alpn=http(?:%2F|\/)1\.1(?:&|#|$)/i.test(url)) return true;
+  if (url.includes("1000000")) return true;
+  return !/[?&]scMaxEachPostBytes=262144(?:&|#|$)/.test(url);
 }
 
 export function buildYandexCdnVlessUrl(opts: {
@@ -57,7 +57,8 @@ export function buildYandexCdnVlessUrl(opts: {
   return (
     `vless://${opts.uuid}@${cdnHost}:443` +
     `?encryption=none&security=tls&sni=${cdnHost}&host=${cdnHost}` +
-    `&alpn=http%2F1.1&fp=chrome&type=xhttp&path=${pathEnc}&mode=packet-up&extra=${extraEnc}` +
+    `&fp=chrome&type=xhttp&path=${pathEnc}&mode=packet-up` +
+    `&scMaxEachPostBytes=${CDN_XHTTP_MAX_POST_BYTES}&extra=${extraEnc}` +
     `#WG-Yandex-CDN`
   );
 }

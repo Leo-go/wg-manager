@@ -38,11 +38,12 @@ describe("buildYandexCdnVlessUrl", () => {
     expect(url).toContain("security=tls");
     expect(url).toContain("sni=cdn.example.com");
     expect(url).toContain("host=cdn.example.com");
-    expect(url).toContain("alpn=http%2F1.1");
+    expect(url).not.toContain("alpn=http%2F1.1");
     expect(url).toContain("fp=chrome");
     expect(url).toContain("type=xhttp");
     expect(url).toContain("path=%2Fapi-test");
     expect(url).toContain("mode=packet-up");
+    expect(url).toContain(`scMaxEachPostBytes=${CDN_XHTTP_MAX_POST_BYTES}`);
     expect(url).toContain("extra=");
     expect(url.endsWith("#WG-Yandex-CDN")).toBe(true);
 
@@ -61,7 +62,7 @@ describe("buildYandexCdnVlessUrl", () => {
     expect(cdnVlessUrlNeedsXhttpRefresh(url)).toBe(false);
   });
 
-  it("flags legacy CDN URLs without HTTP/1.1 or with 1MB posts", () => {
+  it("flags HTTP/1.1 ALPN and Happ 1MB post default", () => {
     expect(
       cdnVlessUrlNeedsXhttpRefresh(
         "vless://11111111-1111-1111-1111-111111111111@cdn.example.com:443?encryption=none&security=tls&type=xhttp&extra=%7B%22scMaxEachPostBytes%22%3A1000000%7D#WG-Yandex-CDN"
@@ -69,7 +70,12 @@ describe("buildYandexCdnVlessUrl", () => {
     ).toBe(true);
     expect(
       cdnVlessUrlNeedsXhttpRefresh(
-        "vless://11111111-1111-1111-1111-111111111111@cdn.example.com:443?encryption=none&security=tls&alpn=http%2F1.1&type=xhttp&extra=%7B%22scMaxEachPostBytes%22%3A262144%7D#WG-Yandex-CDN"
+        "vless://11111111-1111-1111-1111-111111111111@cdn.example.com:443?encryption=none&security=tls&alpn=http%2F1.1&fp=chrome&type=xhttp&extra=%7B%22scMaxEachPostBytes%22%3A262144%7D#WG-Yandex-CDN"
+      )
+    ).toBe(true);
+    expect(
+      cdnVlessUrlNeedsXhttpRefresh(
+        "vless://11111111-1111-1111-1111-111111111111@cdn.example.com:443?encryption=none&security=tls&fp=chrome&type=xhttp&scMaxEachPostBytes=262144&extra=%7B%22scMaxEachPostBytes%22%3A262144%7D#WG-Yandex-CDN"
       )
     ).toBe(false);
   });
