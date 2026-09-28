@@ -101,11 +101,18 @@ export async function runXrayClientOnTarget(
   target: BotProvisionTarget,
   action: "add" | "remove" | "list",
   uuid?: string,
-  email?: string
+  email?: string,
+  opts?: { inboundPort?: number }
 ): Promise<string> {
   const args: string[] = [action];
   if (uuid) args.push(uuid);
   if (email) args.push(email);
+
+  const inboundPort = opts?.inboundPort;
+  const portPrefix =
+    typeof inboundPort === "number" && Number.isInteger(inboundPort) && inboundPort > 0
+      ? `export XRAY_INBOUND_PORT=${inboundPort}\n`
+      : "";
 
   const result = await runRemoteBashScript({
     host: target.ssh.host,
@@ -113,7 +120,7 @@ export async function runXrayClientOnTarget(
     username: target.ssh.username,
     auth: target.ssh.auth,
     jump: target.jump,
-    scriptContent: readXrayClientManagerScript(),
+    scriptContent: `${portPrefix}${readXrayClientManagerScript()}`,
     args,
     readyTimeoutMs: 45_000,
   });
@@ -173,7 +180,9 @@ export async function syncHomeProfile(
   if (!spec) return { url: null };
 
   try {
-    await runXrayClientOnTarget(spec.target, action, uuid, email);
+    await runXrayClientOnTarget(spec.target, action, uuid, email, {
+      inboundPort: 2053,
+    });
     return {
       url: action === "add" ? buildHomeVlessUrl(spec.vlessTemplate, uuid) : null,
     };
