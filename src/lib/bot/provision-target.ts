@@ -2,14 +2,18 @@ import type { SshConnectAuth } from "@/lib/ssh/auth";
 import type { Server } from "@/lib/supabase/types";
 import { resolveBotSshAuth } from "@/lib/bot/ssh-auth";
 
+export type BotSshEndpoint = {
+  host: string;
+  port: number;
+  username: string;
+  auth: SshConnectAuth;
+};
+
 export type BotProvisionTarget = {
   mode: "yandex_cdn" | "direct";
-  ssh: {
-    host: string;
-    port: number;
-    username: string;
-    auth: SshConnectAuth;
-  };
+  ssh: BotSshEndpoint;
+  /** Optional ProxyJump (Vercel cannot reach some SSH ports directly). */
+  jump?: BotSshEndpoint;
   label: string;
 };
 

@@ -7,6 +7,7 @@ import type { BotConfig } from "@/lib/bot/config";
 import { buildClientLabel, swapVlessUuid } from "@/lib/bot/build-vless-url";
 import { getVpnServer } from "@/lib/bot/db";
 import {
+  attachHomeJump,
   buildHomeVlessUrl,
   homeSpecFromEnv,
   homeSpecFromServer,
@@ -111,6 +112,7 @@ export async function runXrayClientOnTarget(
     port: target.ssh.port,
     username: target.ssh.username,
     auth: target.ssh.auth,
+    jump: target.jump,
     scriptContent: readXrayClientManagerScript(),
     args,
     readyTimeoutMs: 45_000,
@@ -143,11 +145,22 @@ export async function runXrayClientAction(
 async function resolveHomeSpec(
   config: BotConfig
 ): Promise<HomeProvisionSpec | null> {
+  let spec: HomeProvisionSpec | null;
   if (config.homeServerId) {
     const homeServer = await getVpnServer(config.homeServerId);
-    return homeSpecFromServer(homeServer);
+    spec = homeSpecFromServer(homeServer);
+  } else {
+    spec = homeSpecFromEnv();
   }
-  return homeSpecFromEnv();
+  if (!spec) return null;
+
+  try {
+    const mobileServer = await getVpnServer(config.serverId);
+    spec = attachHomeJump(spec, resolveBotProvisionTarget(mobileServer).ssh);
+  } catch (error) {
+    console.error("home SSH jump (CDN Origin) unavailable:", error);
+  }
+  return spec;
 }
 
 export async function syncHomeProfile(

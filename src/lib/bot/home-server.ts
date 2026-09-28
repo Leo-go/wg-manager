@@ -1,6 +1,9 @@
 import type { BotConfig } from "@/lib/bot/config";
 import { swapVlessUuid } from "@/lib/bot/build-vless-url";
-import type { BotProvisionTarget } from "@/lib/bot/provision-target";
+import type {
+  BotProvisionTarget,
+  BotSshEndpoint,
+} from "@/lib/bot/provision-target";
 import { resolveBotSshAuth } from "@/lib/bot/ssh-auth";
 import type { Server } from "@/lib/supabase/types";
 
@@ -78,4 +81,26 @@ export function isHomeProfileEnabled(config: BotConfig): boolean {
     config.homeServerId ||
       (env("TELEGRAM_BOT_HOME_SSH_HOST") && env("TELEGRAM_BOT_HOME_VLESS_TEMPLATE"))
   );
+}
+
+/** Route home SSH through Origin/exit when Vercel is refused on :22. */
+export function attachHomeJump(
+  spec: HomeProvisionSpec,
+  jump: BotSshEndpoint
+): HomeProvisionSpec {
+  if (
+    jump.host === spec.target.ssh.host &&
+    jump.port === spec.target.ssh.port
+  ) {
+    return spec;
+  }
+
+  return {
+    ...spec,
+    target: {
+      ...spec.target,
+      jump,
+      label: `${spec.target.label} via ${jump.username}@${jump.host}:${jump.port}`,
+    },
+  };
 }

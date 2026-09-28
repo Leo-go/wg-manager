@@ -1,4 +1,5 @@
 import { Client as SSHClient } from "ssh2";
+import type { ConnectConfig } from "ssh2";
 import type { SshConnectAuth } from "@/lib/ssh/auth";
 
 export type RemoteExecResult = {
@@ -117,6 +118,32 @@ export function normalizeSshUsername(raw?: string | null): string {
   return trimmed;
 }
 
+function authConnectFields(auth: SshConnectAuth): Partial<ConnectConfig> {
+  if (auth.type === "privateKey") {
+    return {
+      privateKey: auth.privateKey,
+      ...(auth.passphrase ? { passphrase: auth.passphrase } : {}),
+    };
+  }
+  return { password: auth.password };
+}
+
+function connectSsh(client: SSHClient, config: ConnectConfig): Promise<void> {
+  return new Promise((resolve, reject) => {
+    client
+      .on("ready", () => resolve())
+      .on("error", (err) => reject(err))
+      .connect(config);
+  });
+}
+
+export type SshJumpOpts = {
+  host: string;
+  port: number;
+  username: string;
+  auth: SshConnectAuth;
+};
+
 /**
  * Upload a bash script via stdin and run with positional args.
  * Non-root users run via `sudo -n` (needs passwordless sudo on the VPS).
@@ -129,10 +156,12 @@ export async function runRemoteBashScript(opts: {
   args?: string[];
   username?: string | null;
   readyTimeoutMs?: number;
+  jump?: SshJumpOpts;
   onConnected?: () => void;
   onOutput?: (chunk: string) => void;
 }): Promise<RemoteExecResult> {
   const ssh = new SSHClient();
+  const jumpClient = opts.jump ? new SSHClient() : null;
   const username = normalizeSshUsername(opts.username);
   const args = opts.args ?? [];
   const argSuffix = args.map(shellSingleQuote).join(" ");
@@ -143,29 +172,45 @@ export async function runRemoteBashScript(opts: {
       ? "bash --noprofile --norc -s --"
       : "sudo -n bash --noprofile --norc -s --";
   const command = `export DEBIAN_FRONTEND=noninteractive TERM=xterm CURL_HOME=/tmp; echo '${escapedScript}' | ${bashRunner} ${argSuffix}`;
+  const readyTimeout = opts.readyTimeoutMs ?? 30_000;
 
   try {
-    await new Promise<void>((resolve, reject) => {
-      ssh
-        .on("ready", () => resolve())
-        .on("error", (err) => reject(err))
-        .connect({
-          host: opts.host,
-          port: opts.port,
-          username,
-          readyTimeout: opts.readyTimeoutMs ?? 30_000,
-          ...(opts.auth.type === "privateKey"
-            ? {
-                privateKey: opts.auth.privateKey,
-                ...(opts.auth.passphrase
-                  ? { passphrase: opts.auth.passphrase }
-                  : {}),
-              }
-            : { password: opts.auth.password }),
-        });
+    let sock: ConnectConfig["sock"];
+    if (opts.jump && jumpClient) {
+      await connectSsh(jumpClient, {
+        host: opts.jump.host,
+        port: opts.jump.port,
+        username: normalizeSshUsername(opts.jump.username),
+        readyTimeout,
+        ...authConnectFields(opts.jump.auth),
+      });
+      sock = await new Promise<NonNullable<ConnectConfig["sock"]>>(
+        (resolve, reject) => {
+          jumpClient.forwardOut(
+            "127.0.0.1",
+            0,
+            opts.host,
+            opts.port,
+            (err, stream) => {
+              if (err) reject(err);
+              else resolve(stream);
+            }
+          );
+        }
+      );
+    }
+
+    await connectSsh(ssh, {
+      host: opts.host,
+      port: opts.port,
+      username,
+      readyTimeout,
+      ...authConnectFields(opts.auth),
+      ...(sock ? { sock } : {}),
     });
   } catch (sshError) {
     ssh.end();
+    jumpClient?.end();
     throw mapSshError(sshError);
   }
 
@@ -210,5 +255,6 @@ export async function runRemoteBashScript(opts: {
     };
   } finally {
     ssh.end();
+    jumpClient?.end();
   }
 }

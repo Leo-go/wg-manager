@@ -1,10 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  attachHomeJump,
   buildHomeVlessUrl,
   homeSpecFromEnv,
   isHomeProfileEnabled,
 } from "@/lib/bot/home-server";
 import type { BotConfig } from "@/lib/bot/config";
+import type { BotSshEndpoint } from "@/lib/bot/provision-target";
 
 describe("buildHomeVlessUrl", () => {
   it("swaps UUID on a Reality TCP template", () => {
@@ -53,5 +55,46 @@ describe("homeSpecFromEnv", () => {
     );
     const config = { homeServerId: undefined } as BotConfig;
     expect(isHomeProfileEnabled(config)).toBe(true);
+  });
+});
+
+describe("attachHomeJump", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  const origin: BotSshEndpoint = {
+    host: "185.247.185.3",
+    port: 22,
+    username: "root",
+    auth: { type: "password", password: "origin" },
+  };
+
+  it("adds Origin as ProxyJump and keeps the home host", () => {
+    vi.stubEnv("TELEGRAM_BOT_HOME_SSH_HOST", "94.103.15.20");
+    vi.stubEnv(
+      "TELEGRAM_BOT_HOME_VLESS_TEMPLATE",
+      "vless://00000000-0000-4000-8000-000000000001@94.103.15.20:2053?type=tcp#WG-HOME"
+    );
+    vi.stubEnv("TELEGRAM_BOT_HOME_SSH_PASSWORD", "home");
+    const spec = homeSpecFromEnv();
+    expect(spec).not.toBeNull();
+    const jumped = attachHomeJump(spec!, origin);
+    expect(jumped.target.ssh.host).toBe("94.103.15.20");
+    expect(jumped.target.jump?.host).toBe("185.247.185.3");
+    expect(jumped.target.label).toContain("via root@185.247.185.3:22");
+  });
+
+  it("skips jump when dest is already the Origin", () => {
+    const spec = {
+      label: "x",
+      vlessTemplate: "vless://u@94.103.15.20:2053?type=tcp#h",
+      target: {
+        mode: "direct" as const,
+        ssh: origin,
+        label: "same",
+      },
+    };
+    expect(attachHomeJump(spec, origin).target.jump).toBeUndefined();
   });
 });
