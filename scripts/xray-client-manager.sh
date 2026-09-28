@@ -59,9 +59,12 @@ export XUI_DB="${XUI_DB:-}"
 export XRAY_INBOUND_PORT="${XRAY_INBOUND_PORT:-}"
 
 python3 - << 'PY'
+import copy
 import json
 import os
+import secrets
 import sqlite3
+import string
 import subprocess
 import sys
 from pathlib import Path
@@ -80,13 +83,39 @@ def vless_inbounds(cfg):
         rows = [ib for ib in rows if ib.get("port") == inbound_port]
     return rows
 
+def build_client(existing):
+    """Clone 3x-ui/Xray client shape so the panel does not drop the row on restart."""
+    if existing:
+        client = copy.deepcopy(existing[0])
+    else:
+        client = {
+            "flow": "",
+            "limitIp": 0,
+            "totalGB": 0,
+            "expiryTime": 0,
+            "enable": True,
+            "tgId": "",
+            "subId": "",
+            "reset": 0,
+        }
+    client["id"] = uuid
+    client["enable"] = True
+    if email:
+        client["email"] = email
+    elif not client.get("email"):
+        client["email"] = f"tg-{uuid[:8]}"
+    client["expiryTime"] = 0
+    if not client.get("subId"):
+        alphabet = string.ascii_lowercase + string.digits
+        client["subId"] = "".join(secrets.choice(alphabet) for _ in range(16))
+    return client
+
 def mutate_clients(clients):
+    others = [c for c in clients if c.get("id") != uuid]
     if action == "add":
-        client = {"id": uuid, "email": email, "enable": True} if email else {"id": uuid, "enable": True}
-        if not any(c.get("id") == uuid for c in clients):
-            clients.append(client)
-        return clients
-    return [c for c in clients if c.get("id") != uuid]
+        others.append(build_client(others))
+        return others
+    return others
 
 def restart_standalone(cfg_path):
     xray = "/usr/local/bin/xray"
@@ -149,12 +178,24 @@ def run_file_backend():
 def run_xui_backend():
     conn = sqlite3.connect(xui_db)
     conn.row_factory = sqlite3.Row
-    sql = "SELECT id, port, protocol, settings FROM inbounds WHERE protocol = 'vless'"
-    params = []
+    rows = list(
+        conn.execute(
+            "SELECT id, port, protocol, settings FROM inbounds WHERE protocol = 'vless'"
+        )
+    )
     if inbound_port is not None:
-        sql += " AND port = ?"
-        params.append(inbound_port)
-    rows = list(conn.execute(sql, params))
+        matching = [row for row in rows if row["port"] == inbound_port]
+        # If port 2053 exists, prefer it; still include other vless rows that
+        # already have clients (Hiddify/3x-ui sometimes split listen vs port).
+        with_clients = []
+        for row in rows:
+            settings = json.loads(row["settings"] or "{}")
+            if settings.get("clients"):
+                with_clients.append(row)
+        chosen = matching or with_clients or rows
+    else:
+        chosen = rows
+    rows = chosen
     if action == "list":
         seen = []
         for row in rows:
