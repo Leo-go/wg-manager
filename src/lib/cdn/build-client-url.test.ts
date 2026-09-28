@@ -52,17 +52,17 @@ describe("buildYandexCdnVlessUrl", () => {
     const extraParam = params.get("extra");
     expect(extraParam).toBeTruthy();
     const extra = JSON.parse(decodeURIComponent(extraParam!)) as {
-      xPaddingKey: string;
       uplinkHTTPMethod: string;
       scMaxEachPostBytes: number;
+      xPaddingObfsMode: boolean;
     };
-    expect(extra.xPaddingKey).toBe("dc");
     expect(extra.uplinkHTTPMethod).toBe("OPTIONS");
     expect(extra.scMaxEachPostBytes).toBe(CDN_XHTTP_MAX_POST_BYTES);
+    expect(extra.xPaddingObfsMode).toBe(false);
     expect(cdnVlessUrlNeedsXhttpRefresh(url)).toBe(false);
   });
 
-  it("flags HTTP/1.1 ALPN and Happ 1MB post default", () => {
+  it("flags HTTP/1.1 ALPN, 1MB posts, and header padding", () => {
     expect(
       cdnVlessUrlNeedsXhttpRefresh(
         "vless://11111111-1111-1111-1111-111111111111@cdn.example.com:443?encryption=none&security=tls&type=xhttp&extra=%7B%22scMaxEachPostBytes%22%3A1000000%7D#WG-Yandex-CDN"
@@ -70,12 +70,17 @@ describe("buildYandexCdnVlessUrl", () => {
     ).toBe(true);
     expect(
       cdnVlessUrlNeedsXhttpRefresh(
-        "vless://11111111-1111-1111-1111-111111111111@cdn.example.com:443?encryption=none&security=tls&alpn=http%2F1.1&fp=chrome&type=xhttp&extra=%7B%22scMaxEachPostBytes%22%3A262144%7D#WG-Yandex-CDN"
+        "vless://11111111-1111-1111-1111-111111111111@cdn.example.com:443?encryption=none&security=tls&alpn=http%2F1.1&fp=chrome&type=xhttp&scMaxEachPostBytes=262144&extra=%7B%22scMaxEachPostBytes%22%3A262144%7D#WG-Yandex-CDN"
       )
     ).toBe(true);
     expect(
       cdnVlessUrlNeedsXhttpRefresh(
-        "vless://11111111-1111-1111-1111-111111111111@cdn.example.com:443?encryption=none&security=tls&fp=chrome&type=xhttp&scMaxEachPostBytes=262144&extra=%7B%22scMaxEachPostBytes%22%3A262144%7D#WG-Yandex-CDN"
+        "vless://11111111-1111-1111-1111-111111111111@cdn.example.com:443?encryption=none&security=tls&fp=chrome&type=xhttp&scMaxEachPostBytes=262144&extra=%7B%22xPaddingPlacement%22%3A%22queryInHeader%22%7D#WG-Yandex-CDN"
+      )
+    ).toBe(true);
+    expect(
+      cdnVlessUrlNeedsXhttpRefresh(
+        "vless://11111111-1111-1111-1111-111111111111@cdn.example.com:443?encryption=none&security=tls&fp=chrome&type=xhttp&scMaxEachPostBytes=262144&extra=%7B%22scMaxEachPostBytes%22%3A262144%2C%22xPaddingObfsMode%22%3Afalse%7D#WG-Yandex-CDN"
       )
     ).toBe(false);
   });

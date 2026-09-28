@@ -98,7 +98,7 @@ export function botCdnUrlNeedsHostRefresh(
   return Boolean(currentHost && currentHost !== expected);
 }
 
-/** Host www-normalization or xHTTP 413 workaround (query post size, no HTTP/1.1 ALPN). */
+/** Host www-normalization or xHTTP 413 workaround (no header padding). */
 export function botCdnUrlNeedsRefresh(
   vlessConfigUrl: string | null | undefined,
   server: Server

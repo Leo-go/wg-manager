@@ -23,13 +23,15 @@ export function normalizeCdnClientHost(raw: string): string {
   return host;
 }
 
-/** Yandex CDN HTTP/2 edges return 413 on Happ's default 1MB xHTTP posts. */
+/** Yandex Moscow HTTP/2 edges return 413 on xHTTP header padding (queryInHeader). */
 export const CDN_XHTTP_MAX_POST_BYTES = 262_144;
 
-/** True if a stored CDN vless:// still uses HTTP/1.1 ALPN or Happ's 1MB post default. */
+/** True if a stored CDN vless:// still uses HTTP/1.1, 1MB posts, or header padding. */
 export function cdnVlessUrlNeedsXhttpRefresh(url: string): boolean {
   if (/[?&]alpn=http(?:%2F|\/)1\.1(?:&|#|$)/i.test(url)) return true;
   if (url.includes("1000000")) return true;
+  if (url.includes("queryInHeader")) return true;
+  if (url.includes("%22xPaddingObfsMode%22%3Atrue")) return true;
   return !/[?&]scMaxEachPostBytes=262144(?:&|#|$)/.test(url);
 }
 
@@ -41,16 +43,13 @@ export function buildYandexCdnVlessUrl(opts: {
 }): string {
   const cdnHost = normalizeCdnClientHost(opts.cdnHost);
   const pathEnc = encodeURIComponent(opts.path);
+  void opts.paddingKey;
   const extra = {
     mode: "packet-up",
     scMaxEachPostBytes: CDN_XHTTP_MAX_POST_BYTES,
     scMinPostsIntervalMs: 30,
     scMaxBufferedPosts: 30,
-    xPaddingObfsMode: true,
-    xPaddingKey: opts.paddingKey,
-    xPaddingHeader: "X-Cache",
-    xPaddingMethod: "tokenish",
-    xPaddingPlacement: "queryInHeader",
+    xPaddingObfsMode: false,
     uplinkHTTPMethod: "OPTIONS",
   };
   const extraEnc = encodeURIComponent(JSON.stringify(extra));

@@ -342,7 +342,7 @@ open_firewall_tcp 443
 # Client VLESS URL (user still must finish Yandex CDN + DNS CNAME)
 PATH_ENC=$(python3 -c "import urllib.parse; print(urllib.parse.quote('${XHTTP_PATH}', safe=''))")
 EXTRA_JSON=$(cat <<EXTRA
-{"mode":"packet-up","scMaxEachPostBytes":262144,"scMinPostsIntervalMs":30,"scMaxBufferedPosts":30,"xPaddingObfsMode":true,"xPaddingKey":"${PADDING_KEY}","xPaddingHeader":"X-Cache","xPaddingMethod":"tokenish","xPaddingPlacement":"queryInHeader","uplinkHTTPMethod":"OPTIONS"}
+{"mode":"packet-up","scMaxEachPostBytes":262144,"scMinPostsIntervalMs":30,"scMaxBufferedPosts":30,"xPaddingObfsMode":false,"uplinkHTTPMethod":"OPTIONS"}
 EXTRA
 )
 EXTRA_ENC=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1], safe=''))" "$EXTRA_JSON")
