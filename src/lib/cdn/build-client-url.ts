@@ -23,6 +23,16 @@ export function normalizeCdnClientHost(raw: string): string {
   return host;
 }
 
+/** Yandex CDN HTTP/2 edges return 413 on 1MB xHTTP posts + padding headers. */
+export const CDN_XHTTP_MAX_POST_BYTES = 262_144;
+
+/** True if a stored CDN vless:// still uses HTTP/2 or 1MB posts. */
+export function cdnVlessUrlNeedsXhttpRefresh(url: string): boolean {
+  const hasHttp11 = /[?&]alpn=http(?:%2F|\/)1\.1(?:&|#|$)/i.test(url);
+  if (!hasHttp11) return true;
+  return url.includes("1000000");
+}
+
 export function buildYandexCdnVlessUrl(opts: {
   uuid: string;
   cdnHost: string;
@@ -33,7 +43,7 @@ export function buildYandexCdnVlessUrl(opts: {
   const pathEnc = encodeURIComponent(opts.path);
   const extra = {
     mode: "packet-up",
-    scMaxEachPostBytes: 1_000_000,
+    scMaxEachPostBytes: CDN_XHTTP_MAX_POST_BYTES,
     scMinPostsIntervalMs: 30,
     scMaxBufferedPosts: 30,
     xPaddingObfsMode: true,
@@ -47,7 +57,7 @@ export function buildYandexCdnVlessUrl(opts: {
   return (
     `vless://${opts.uuid}@${cdnHost}:443` +
     `?encryption=none&security=tls&sni=${cdnHost}&host=${cdnHost}` +
-    `&type=xhttp&path=${pathEnc}&mode=packet-up&extra=${extraEnc}` +
+    `&alpn=http%2F1.1&fp=chrome&type=xhttp&path=${pathEnc}&mode=packet-up&extra=${extraEnc}` +
     `#WG-Yandex-CDN`
   );
 }

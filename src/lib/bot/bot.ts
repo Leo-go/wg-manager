@@ -62,7 +62,7 @@ import {
   provisionBotUserDual,
   revokeBotUserEverywhere,
   buildClientUrls,
-  botCdnUrlNeedsHostRefresh,
+  botCdnUrlNeedsRefresh,
   syncHomeProfile,
 } from "@/lib/bot/xray-clients";
 
@@ -175,7 +175,7 @@ async function ensureProvisioned(
       vless_tcp_config_url?: string | null;
     } = {};
 
-    if (botCdnUrlNeedsHostRefresh(user.vless_config_url, server)) {
+    if (botCdnUrlNeedsRefresh(user.vless_config_url, server)) {
       const urls = buildClientUrls(server, user.xray_uuid);
       patch.vless_config_url = urls.vlessConfigUrl;
     }

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import {
   buildYandexCdnVlessUrl,
+  cdnVlessUrlNeedsXhttpRefresh,
   normalizeCdnClientHost,
 } from "@/lib/cdn/build-client-url";
 import type { BotConfig } from "@/lib/bot/config";
@@ -95,6 +96,20 @@ export function botCdnUrlNeedsHostRefresh(
   const match = vlessConfigUrl.trim().match(/^vless:\/\/[^@]+@([^:?/]+)/i);
   const currentHost = match?.[1]?.toLowerCase();
   return Boolean(currentHost && currentHost !== expected);
+}
+
+/** Host www-normalization or xHTTP 413 workaround (HTTP/1.1 + smaller posts). */
+export function botCdnUrlNeedsRefresh(
+  vlessConfigUrl: string | null | undefined,
+  server: Server
+): boolean {
+  if (!isCdnBotServer(server) || !vlessConfigUrl?.trim()) {
+    return false;
+  }
+  if (botCdnUrlNeedsHostRefresh(vlessConfigUrl, server)) {
+    return true;
+  }
+  return cdnVlessUrlNeedsXhttpRefresh(vlessConfigUrl.trim());
 }
 
 export async function runXrayClientOnTarget(

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   buildYandexCdnVlessUrl,
+  CDN_XHTTP_MAX_POST_BYTES,
+  cdnVlessUrlNeedsXhttpRefresh,
   normalizeCdnClientHost,
 } from "@/lib/cdn/build-client-url";
 
@@ -36,6 +38,8 @@ describe("buildYandexCdnVlessUrl", () => {
     expect(url).toContain("security=tls");
     expect(url).toContain("sni=cdn.example.com");
     expect(url).toContain("host=cdn.example.com");
+    expect(url).toContain("alpn=http%2F1.1");
+    expect(url).toContain("fp=chrome");
     expect(url).toContain("type=xhttp");
     expect(url).toContain("path=%2Fapi-test");
     expect(url).toContain("mode=packet-up");
@@ -49,9 +53,25 @@ describe("buildYandexCdnVlessUrl", () => {
     const extra = JSON.parse(decodeURIComponent(extraParam!)) as {
       xPaddingKey: string;
       uplinkHTTPMethod: string;
+      scMaxEachPostBytes: number;
     };
     expect(extra.xPaddingKey).toBe("dc");
     expect(extra.uplinkHTTPMethod).toBe("OPTIONS");
+    expect(extra.scMaxEachPostBytes).toBe(CDN_XHTTP_MAX_POST_BYTES);
+    expect(cdnVlessUrlNeedsXhttpRefresh(url)).toBe(false);
+  });
+
+  it("flags legacy CDN URLs without HTTP/1.1 or with 1MB posts", () => {
+    expect(
+      cdnVlessUrlNeedsXhttpRefresh(
+        "vless://11111111-1111-1111-1111-111111111111@cdn.example.com:443?encryption=none&security=tls&type=xhttp&extra=%7B%22scMaxEachPostBytes%22%3A1000000%7D#WG-Yandex-CDN"
+      )
+    ).toBe(true);
+    expect(
+      cdnVlessUrlNeedsXhttpRefresh(
+        "vless://11111111-1111-1111-1111-111111111111@cdn.example.com:443?encryption=none&security=tls&alpn=http%2F1.1&type=xhttp&extra=%7B%22scMaxEachPostBytes%22%3A262144%7D#WG-Yandex-CDN"
+      )
+    ).toBe(false);
   });
 
   it("normalizes apex CDN host to www in the URL", () => {
