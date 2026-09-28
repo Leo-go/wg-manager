@@ -52,12 +52,33 @@ export async function GET(request: Request): Promise<Response> {
     const target = describeBotProvisionTarget(server);
     const clients = await runXrayClientAction(server, "list");
 
+    let home: { ok: boolean; label?: string; error?: string } | null = null;
+    try {
+      const { homeSpecFromEnv, homeSpecFromServer } = await import(
+        "@/lib/bot/home-server"
+      );
+      const spec = config.homeServerId
+        ? homeSpecFromServer(await getVpnServer(config.homeServerId))
+        : homeSpecFromEnv();
+      if (spec) {
+        const { runXrayClientOnTarget } = await import("@/lib/bot/xray-clients");
+        await runXrayClientOnTarget(spec.target, "list");
+        home = { ok: true, label: spec.label };
+      }
+    } catch (error) {
+      home = {
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+
     return Response.json({
       ok: true,
       provisionMode,
       cdnReady: isCdnBotServer(server),
       target,
       capacity,
+      home,
       server: {
         id: server.id,
         name: server.name,
@@ -72,6 +93,9 @@ export async function GET(request: Request): Promise<Response> {
       auth: {
         sshPasswordConfigured,
         sshKeyConfigured,
+        homeSshPasswordConfigured: Boolean(
+          process.env.TELEGRAM_BOT_HOME_SSH_PASSWORD?.trim()
+        ),
         platformKeyConfigured: Boolean(process.env.WG_SSH_PRIVATE_KEY?.trim()),
       },
       xrayClients: clients
@@ -98,6 +122,9 @@ export async function GET(request: Request): Promise<Response> {
       auth: {
         sshPasswordConfigured,
         sshKeyConfigured,
+        homeSshPasswordConfigured: Boolean(
+          process.env.TELEGRAM_BOT_HOME_SSH_PASSWORD?.trim()
+        ),
         platformKeyConfigured: Boolean(process.env.WG_SSH_PRIVATE_KEY?.trim()),
       },
       error: error instanceof Error ? error.message : String(error),

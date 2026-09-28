@@ -56,11 +56,14 @@ import {
   updateBotUser,
   upsertBotUser,
 } from "@/lib/bot/db";
+import { buildClientLabel } from "@/lib/bot/build-vless-url";
+import { isHomeProfileEnabled } from "@/lib/bot/home-server";
 import {
-  provisionBotUserClient,
-  revokeBotUserClient,
+  provisionBotUserDual,
+  revokeBotUserEverywhere,
   buildClientUrls,
   botCdnUrlNeedsHostRefresh,
+  syncHomeProfile,
 } from "@/lib/bot/xray-clients";
 
 function escapeHtml(text: string): string {
@@ -160,19 +163,35 @@ async function ensureProvisioned(
   if (!user) throw new Error("User not found");
 
   const server = await getVpnServer(config.serverId);
+  const email = buildClientLabel(
+    user.first_name,
+    user.telegram_username,
+    user.telegram_id
+  );
 
   if (user.vless_config_url && user.xray_uuid) {
+    const patch: {
+      vless_config_url?: string;
+      vless_tcp_config_url?: string | null;
+    } = {};
+
     if (botCdnUrlNeedsHostRefresh(user.vless_config_url, server)) {
       const urls = buildClientUrls(server, user.xray_uuid);
-      return updateBotUser(user.id, {
-        vless_config_url: urls.vlessConfigUrl,
-        vless_tcp_config_url: urls.vlessTcpConfigUrl,
-      });
+      patch.vless_config_url = urls.vlessConfigUrl;
+    }
+
+    if (!user.vless_tcp_config_url) {
+      const home = await syncHomeProfile(config, user.xray_uuid, email, "add");
+      if (home.url) patch.vless_tcp_config_url = home.url;
+    }
+
+    if (Object.keys(patch).length > 0) {
+      return updateBotUser(user.id, patch);
     }
     return user;
   }
 
-  const provisioned = await provisionBotUserClient(server, user);
+  const provisioned = await provisionBotUserDual(config, server, user);
   return updateBotUser(user.id, {
     xray_uuid: provisioned.uuid,
     vless_config_url: provisioned.vlessConfigUrl,
@@ -356,7 +375,7 @@ export function createBot(config: BotConfig): Bot {
 
       const user = await grantSubscription(targetId, 3);
       const server = await getVpnServer(config.serverId);
-      const provisioned = await provisionBotUserClient(server, user);
+      const provisioned = await provisionBotUserDual(config, server, user);
       const updated = await updateBotUser(user.id, {
         xray_uuid: provisioned.uuid,
         vless_config_url: provisioned.vlessConfigUrl,
@@ -364,26 +383,21 @@ export function createBot(config: BotConfig): Bot {
         is_active: true,
       });
 
-      const keyUrl = updated.vless_config_url?.trim() || "";
       await ctx.reply(
         [
           `✅ Trial на 3 дня: ${targetId}`,
           `Подписка до: ${formatDate(updated.subscribed_until)}`,
           "",
-          "Перешлите человеку APK (v2rayNG) + ключ ниже.",
-          "Когда появится Telegram — пусть зайдёт в бота и продлит через «Поддержать».",
-        ].join("\n")
+          "Перешлите APK (v2rayNG) + оба ключа: 🏠 дом и 📱 мобильный.",
+          provisioned.homeError
+            ? `⚠️ Домашний ключ не записался на 94.103: ${provisioned.homeError}`
+            : "",
+        ]
+          .filter(Boolean)
+          .join("\n")
       );
 
-      if (keyUrl) {
-        await replyCopyableKey(
-          ctx,
-          keyUrl,
-          "📋 Trial-ключ — нажмите, чтобы скопировать:"
-        );
-      } else {
-        await ctx.reply("❌ Ключ не сгенерировался — проверьте /api/telegram/health");
-      }
+      await sendDualKeys(ctx, updated);
 
       await bot.api
         .sendMessage(
@@ -452,7 +466,7 @@ export function createBot(config: BotConfig): Bot {
 
       if (user.xray_uuid) {
         const server = await getVpnServer(config.serverId);
-        await revokeBotUserClient(server, user.xray_uuid);
+        await revokeBotUserEverywhere(config, server, user.xray_uuid);
       }
 
       await updateBotUser(user.id, {
@@ -646,10 +660,14 @@ function helpText(config: BotConfig): string {
     "1. Скачайте клиент (кнопка «📲 Клиенты»):",
     "   • Android — v2rayNG (APK из бота или GitHub)",
     "   • iPhone — INCY (российский App Store)",
-    "   • Windows — v2rayN",
+    "   • Windows — v2rayN · Mac — Happ desktop",
     "2. «Поддержать» → Stars ⭐ или СБП.",
-    "3. «Подключиться» → «📋 Скопировать ключ» (или нажмите на серый ключ).",
-    "4. В клиенте: импорт из буфера → Connect.",
+    "3. «Подключиться» — два ключа: 🏠 дом и 📱 мобильный.",
+    "4. Сначала дом. Если не встаёт (часть мобильных) — мобильный ключ.",
+    "5. Импорт из буфера → Connect. Если нет интернета — ВЫКЛЮЧИТЕ VPN.",
+    "",
+    "🏠 Дом (Reality): v2rayNG / INCY / Happ / Hiddify.",
+    "📱 Мобильный (CDN xHTTP): только v2rayNG / INCY / Happ / v2rayN. Не Hiddify.",
     "",
     "🍎 iPhone (INCY):",
     "   • Ставится из РФ App Store без смены региона",
@@ -657,7 +675,7 @@ function helpText(config: BotConfig): string {
     `   • ${INCY_IOS_APPSTORE_URL}`,
     "   • Запасной: Happ (часто удалён из РФ) — зарубежный Apple ID / TestFlight",
     "",
-    "⚠️ Yandex CDN: v2rayNG / INCY / v2rayN. Не Hiddify.",
+    "⚠️ Мобильный CDN: не Hiddify. Дом — Hiddify можно.",
     "",
     `Stars: ${config.starsAmount} ⭐ / мес · СБП: ${formatRub(config.suggestedDonationRub)}`,
     "",
@@ -755,36 +773,57 @@ async function handleConnect(ctx: Context, config: BotConfig, bot: Bot) {
     throw new Error(`${formatBotError(error)}${hint}`);
   }
 
-  const keyUrl = updated.vless_config_url?.trim() || "";
+  const mobileUrl = updated.vless_config_url?.trim() || "";
+  const homeUrl = updated.vless_tcp_config_url?.trim() || "";
 
-  const header = [
-    "🔌 Ваш ключ VPN",
-    "",
-    "Импорт: Android — v2rayNG · iPhone — INCY · Windows — v2rayN",
-    "⚠️ Hiddify не использовать.",
-    `Подписка до: ${formatDate(updated.subscribed_until)}`,
-  ];
+  await ctx.reply(
+    [
+      "🔌 Ваши ключи VPN",
+      "",
+      "Сначала 🏠 дом. Если не коннектится — 📱 мобильный.",
+      "Нет интернета после включения — выключите VPN в клиенте.",
+      "",
+      "Дом: v2rayNG / INCY / Happ / Hiddify.",
+      "Мобильный: v2rayNG / INCY / Happ / v2rayN. Не Hiddify.",
+      `Подписка до: ${formatDate(updated.subscribed_until)}`,
+    ].join("\n"),
+    { reply_markup: afterConnectKeyboard(homeUrl || mobileUrl || null) }
+  );
 
-  if (updated.vless_config_url?.includes("WG-Yandex-CDN")) {
-    header.splice(2, 0, "🌐 Ключ через Yandex CDN.");
+  await sendDualKeys(ctx, updated);
+
+  if (!homeUrl && isHomeProfileEnabled(config)) {
+    await ctx.reply(
+      "⚠️ Домашний ключ не записался на 94.103. Пользуйтесь 📱 мобильным и напишите админу."
+    );
   }
+}
 
-  await ctx.reply(header.join("\n"), {
-    reply_markup: afterConnectKeyboard(keyUrl || null),
-  });
+async function sendDualKeys(
+  ctx: Context,
+  user: { vless_config_url?: string | null; vless_tcp_config_url?: string | null }
+) {
+  const mobileUrl = user.vless_config_url?.trim() || "";
+  const homeUrl = user.vless_tcp_config_url?.trim() || "";
 
-  if (keyUrl) {
-    await replyCopyableKey(ctx, keyUrl);
-  } else {
-    await ctx.reply("Ключ не получен — напишите админу.");
-  }
-
-  if (updated.vless_tcp_config_url?.trim()) {
+  if (homeUrl) {
     await replyCopyableKey(
       ctx,
-      updated.vless_tcp_config_url.trim(),
-      "📶 Wi‑Fi fallback (TCP) — нажмите, чтобы скопировать:"
+      homeUrl,
+      "🏠 ДОМ — нажмите ключ, чтобы скопировать:"
     );
+  }
+
+  if (mobileUrl) {
+    await replyCopyableKey(
+      ctx,
+      mobileUrl,
+      "📱 МОБИЛЬНЫЙ (CDN) — нажмите ключ, чтобы скопировать:"
+    );
+  }
+
+  if (!homeUrl && !mobileUrl) {
+    await ctx.reply("Ключ не получен — напишите админу.");
   }
 }
 
@@ -793,29 +832,15 @@ async function handleCopyKey(ctx: Context) {
   if (!from) return;
 
   const user = await getBotUserByTelegramId(from.id);
-  const url = user?.vless_config_url?.trim();
 
-  if (!user || !url) {
+  if (!user || (!user.vless_config_url && !user.vless_tcp_config_url)) {
     await ctx.reply(
       "Ключа пока нет. Нажмите «Подключиться», чтобы получить его."
     );
     return;
   }
 
-  await replyCopyableKey(
-    ctx,
-    url,
-    "📋 Нажмите на ключ ниже — он скопируется в буфер:"
-  );
-
-  const tcpUrl = user.vless_tcp_config_url?.trim();
-  if (tcpUrl) {
-    await replyCopyableKey(
-      ctx,
-      tcpUrl,
-      "📶 TCP fallback — нажмите, чтобы скопировать:"
-    );
-  }
+  await sendDualKeys(ctx, user);
 }
 
 async function handleDownloadIos(ctx: Context) {

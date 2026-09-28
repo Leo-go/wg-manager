@@ -3,11 +3,20 @@ import {
   buildYandexCdnVlessUrl,
   normalizeCdnClientHost,
 } from "@/lib/cdn/build-client-url";
+import type { BotConfig } from "@/lib/bot/config";
 import { buildClientLabel, swapVlessUuid } from "@/lib/bot/build-vless-url";
+import { getVpnServer } from "@/lib/bot/db";
+import {
+  buildHomeVlessUrl,
+  homeSpecFromEnv,
+  homeSpecFromServer,
+  type HomeProvisionSpec,
+} from "@/lib/bot/home-server";
 import { readXrayClientManagerScript } from "@/lib/bot/config";
 import {
   isCdnBotServer,
   resolveBotProvisionTarget,
+  type BotProvisionTarget,
 } from "@/lib/bot/provision-target";
 import { runRemoteBashScript } from "@/lib/ssh/run-remote";
 import type { BotUser, Server } from "@/lib/supabase/types";
@@ -17,6 +26,7 @@ export type ProvisionedClient = {
   vlessConfigUrl: string;
   vlessTcpConfigUrl: string | null;
   mode: "yandex_cdn" | "direct";
+  homeError?: string;
 };
 
 function pickDirectTemplateUrls(server: Server): {
@@ -86,13 +96,12 @@ export function botCdnUrlNeedsHostRefresh(
   return Boolean(currentHost && currentHost !== expected);
 }
 
-export async function runXrayClientAction(
-  server: Server,
+export async function runXrayClientOnTarget(
+  target: BotProvisionTarget,
   action: "add" | "remove" | "list",
   uuid?: string,
   email?: string
 ): Promise<string> {
-  const target = resolveBotProvisionTarget(server);
   const args: string[] = [action];
   if (uuid) args.push(uuid);
   if (email) args.push(email);
@@ -117,6 +126,51 @@ export async function runXrayClientAction(
   return result.stdout.trim();
 }
 
+export async function runXrayClientAction(
+  server: Server,
+  action: "add" | "remove" | "list",
+  uuid?: string,
+  email?: string
+): Promise<string> {
+  return runXrayClientOnTarget(
+    resolveBotProvisionTarget(server),
+    action,
+    uuid,
+    email
+  );
+}
+
+async function resolveHomeSpec(
+  config: BotConfig
+): Promise<HomeProvisionSpec | null> {
+  if (config.homeServerId) {
+    const homeServer = await getVpnServer(config.homeServerId);
+    return homeSpecFromServer(homeServer);
+  }
+  return homeSpecFromEnv();
+}
+
+export async function syncHomeProfile(
+  config: BotConfig,
+  uuid: string,
+  email: string,
+  action: "add" | "remove"
+): Promise<{ url: string | null; error?: string }> {
+  const spec = await resolveHomeSpec(config);
+  if (!spec) return { url: null };
+
+  try {
+    await runXrayClientOnTarget(spec.target, action, uuid, email);
+    return {
+      url: action === "add" ? buildHomeVlessUrl(spec.vlessTemplate, uuid) : null,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`home Reality ${action} failed (${spec.label}):`, error);
+    return { url: null, error: message };
+  }
+}
+
 export async function provisionBotUserClient(
   server: Server,
   user: Pick<
@@ -139,9 +193,32 @@ export async function provisionBotUserClient(
 
   await runXrayClientAction(server, "add", uuid, email);
 
+  const urls = buildClientUrls(server, uuid);
   return {
     uuid,
-    ...buildClientUrls(server, uuid),
+    ...urls,
+  };
+}
+
+export async function provisionBotUserDual(
+  config: BotConfig,
+  mobileServer: Server,
+  user: Pick<
+    BotUser,
+    "telegram_id" | "telegram_username" | "first_name" | "xray_uuid"
+  >
+): Promise<ProvisionedClient> {
+  const mobile = await provisionBotUserClient(mobileServer, user);
+  const email = buildClientLabel(
+    user.first_name,
+    user.telegram_username,
+    user.telegram_id
+  );
+  const home = await syncHomeProfile(config, mobile.uuid, email, "add");
+  return {
+    ...mobile,
+    vlessTcpConfigUrl: home.url ?? mobile.vlessTcpConfigUrl,
+    homeError: home.error,
   };
 }
 
@@ -150,4 +227,25 @@ export async function revokeBotUserClient(
   uuid: string
 ): Promise<void> {
   await runXrayClientAction(server, "remove", uuid);
+}
+
+export async function revokeBotUserEverywhere(
+  config: BotConfig,
+  mobileServer: Server,
+  uuid: string
+): Promise<void> {
+  const errors: string[] = [];
+  try {
+    await revokeBotUserClient(mobileServer, uuid);
+  } catch (error) {
+    errors.push(error instanceof Error ? error.message : String(error));
+  }
+  const home = await syncHomeProfile(config, uuid, "", "remove");
+  if (home.error) errors.push(home.error);
+  if (errors.length === 2) {
+    throw new Error(errors.join("; "));
+  }
+  if (errors.length === 1) {
+    console.error("revoke partial:", errors[0]);
+  }
 }

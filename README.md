@@ -281,6 +281,7 @@ Friends-and-family VPN bot with manual donations, per-user VLESS keys, and a fun
    - `TELEGRAM_BOT_TOKEN`
    - `TELEGRAM_BOT_SERVER_ID` — `servers.id` of your **exit** with `cdn_status=ready` (Yandex CDN path)
    - `TELEGRAM_BOT_SSH_PASSWORD` — root password of **CDN Origin** VPS (`cdn_origin_ip`), not exit/RU relay
+   - `TELEGRAM_BOT_HOME_SSH_HOST` + `TELEGRAM_BOT_HOME_VLESS_TEMPLATE` (and `TELEGRAM_BOT_HOME_SSH_PASSWORD`) — home Reality on `94.103.15.20:2053`; do not put a real shared UUID/pbk in git
    - `TELEGRAM_ADMIN_IDS` — your Telegram numeric user id(s), comma-separated
    - `TELEGRAM_DONATE_DETAILS` — SBP / card payment instructions
    - `TELEGRAM_SETUP_SECRET` — random string for one-time webhook registration
@@ -309,6 +310,8 @@ Run `scripts/bot-phase2.sql` in Supabase. Set `CRON_SECRET` on Vercel for `/api/
 Phase 3 — funnel: bot button «Создать свой VPN» opens `/login?ref=telegram` with a banner explaining shared bot VPN vs self-serve VPS setup. Optional: `NEXT_PUBLIC_TELEGRAM_BOT_USERNAME` (e.g. `VIPpipaBot`) for «Вернуться в бот».
 
 Phase 4 — capacity: admin `/capacity` (and summary in `/users`) shows active subscribers vs soft limit (`TELEGRAM_BOT_SOFT_LIMIT`, default 40). Health JSON includes `capacity`. New keys are paused at the soft limit until you raise the limit or add another Origin/exit.
+
+Two profiles after «Подключиться»: **home** Reality (`TELEGRAM_BOT_HOME_*`, host like 94.103.15.20:2053) stored in `bot_users.vless_tcp_config_url`, and **mobile** Yandex CDN xHTTP in `vless_config_url`. Cron `/revoke` removes the UUID on both hosts. Handoff: `docs/pm-handoff.md`. Group pin: `docs/group-pin.md`. ISP check: `bash scripts/diag-cdn-from-isp.sh`.
 
 Optional: after the bot successfully sends v2rayNG once, copy `file_id` from Vercel logs into `TELEGRAM_V2RAYNG_FILE_ID` so later downloads skip re-uploading the APK.
 

@@ -5,6 +5,8 @@ export type BotConfig = {
   token: string;
   adminIds: string[];
   serverId: string;
+  /** Optional dashboard servers.id for home Reality (94.103.15.20). */
+  homeServerId?: string;
   donateDetails: string;
   suggestedDonationRub: number;
   monthlyGoalRub: number;
@@ -41,6 +43,7 @@ export function getBotConfig(): BotConfig | null {
     token,
     adminIds: parseAdminIds(process.env.TELEGRAM_ADMIN_IDS),
     serverId,
+    homeServerId: process.env.TELEGRAM_BOT_HOME_SERVER_ID?.trim() || undefined,
     donateDetails:
       process.env.TELEGRAM_DONATE_DETAILS?.trim() ||
       "Переведите 100 ₽ на СБП и нажмите «Я оплатил».",

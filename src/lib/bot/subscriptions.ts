@@ -6,7 +6,7 @@ import {
 import { createServiceClient } from "@/lib/supabase/admin";
 import type { BotUser } from "@/lib/supabase/types";
 import { getVpnServer, updateBotUser } from "@/lib/bot/db";
-import { revokeBotUserClient } from "@/lib/bot/xray-clients";
+import { revokeBotUserEverywhere } from "@/lib/bot/xray-clients";
 
 export type SubscriptionCronResult = {
   remindersSent: number;
@@ -77,7 +77,7 @@ export async function revokeUserVpnAccess(
 ): Promise<BotUser> {
   if (user.xray_uuid) {
     const server = await getVpnServer(config.serverId);
-    await revokeBotUserClient(server, user.xray_uuid);
+    await revokeBotUserEverywhere(config, server, user.xray_uuid);
   }
 
   return updateBotUser(user.id, {

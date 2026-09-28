@@ -26,7 +26,13 @@ function cleanEnvSecret(value: string | undefined): string | undefined {
   return trimmed;
 }
 
-export function getBotSshAuthMode(server: Server): BotSshAuthMode {
+export function getBotSshAuthMode(
+  server: Server,
+  role: "mobile" | "home" = "mobile"
+): BotSshAuthMode {
+  if (role === "home" && cleanEnvSecret(process.env.TELEGRAM_BOT_HOME_SSH_PASSWORD)) {
+    return "env_password";
+  }
   if (cleanEnvSecret(process.env.TELEGRAM_BOT_SSH_PASSWORD)) return "env_password";
   if (cleanEnvSecret(process.env.TELEGRAM_BOT_SSH_PRIVATE_KEY)) return "env_key";
   if (process.env.WG_SSH_PRIVATE_KEY?.trim()) return "platform_key";
@@ -41,7 +47,15 @@ export function describeBotSshTarget(server: Server): string {
 }
 
 /** SSH auth for the Telegram bot only (see resolveBotSshAuth). */
-export function resolveBotSshAuth(server: Server): SshConnectAuth {
+export function resolveBotSshAuth(
+  server: Server,
+  role: "mobile" | "home" = "mobile"
+): SshConnectAuth {
+  const homePassword = cleanEnvSecret(process.env.TELEGRAM_BOT_HOME_SSH_PASSWORD);
+  if (role === "home" && homePassword) {
+    return { type: "password", password: homePassword };
+  }
+
   const envPassword = cleanEnvSecret(process.env.TELEGRAM_BOT_SSH_PASSWORD);
   if (envPassword) {
     return { type: "password", password: envPassword };
