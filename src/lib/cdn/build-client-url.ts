@@ -26,12 +26,13 @@ export function normalizeCdnClientHost(raw: string): string {
 /** Yandex Moscow HTTP/2 edges return 413 on xHTTP header padding (queryInHeader). */
 export const CDN_XHTTP_MAX_POST_BYTES = 262_144;
 
-/** True if a stored CDN vless:// still uses HTTP/1.1, 1MB posts, or header padding. */
+/** True if a stored CDN vless:// still uses HTTP/1.1, 1MB posts, header padding, or OPTIONS uplink. */
 export function cdnVlessUrlNeedsXhttpRefresh(url: string): boolean {
   if (/[?&]alpn=http(?:%2F|\/)1\.1(?:&|#|$)/i.test(url)) return true;
   if (url.includes("1000000")) return true;
   if (url.includes("queryInHeader")) return true;
   if (url.includes("%22xPaddingObfsMode%22%3Atrue")) return true;
+  if (url.includes("%22uplinkHTTPMethod%22%3A%22OPTIONS%22")) return true;
   return !/[?&]scMaxEachPostBytes=262144(?:&|#|$)/.test(url);
 }
 
@@ -50,7 +51,7 @@ export function buildYandexCdnVlessUrl(opts: {
     scMinPostsIntervalMs: 30,
     scMaxBufferedPosts: 30,
     xPaddingObfsMode: false,
-    uplinkHTTPMethod: "OPTIONS",
+    uplinkHTTPMethod: "POST",
   };
   const extraEnc = encodeURIComponent(JSON.stringify(extra));
   return (
