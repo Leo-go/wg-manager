@@ -1,3 +1,4 @@
+import { buildClientLabelArg } from "@/lib/bot/build-vless-url";
 import {
   daysUntilExpiry,
   extendSubscriptionDays,
@@ -77,7 +78,12 @@ export async function revokeUserVpnAccess(
 ): Promise<BotUser> {
   if (user.xray_uuid) {
     const server = await getVpnServer(config.serverId);
-    await revokeBotUserEverywhere(config, server, user.xray_uuid);
+    const email = buildClientLabelArg(
+      user.first_name,
+      user.telegram_username,
+      user.telegram_id
+    );
+    await revokeBotUserEverywhere(config, server, user.xray_uuid, email);
   }
 
   return updateBotUser(user.id, {

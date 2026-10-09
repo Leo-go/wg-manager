@@ -56,7 +56,7 @@ import {
   updateBotUser,
   upsertBotUser,
 } from "@/lib/bot/db";
-import { buildClientLabel } from "@/lib/bot/build-vless-url";
+import { buildClientLabelArg } from "@/lib/bot/build-vless-url";
 import { isHomeProfileEnabled } from "@/lib/bot/home-server";
 import {
   provisionBotUserDual,
@@ -163,7 +163,7 @@ async function ensureProvisioned(
   if (!user) throw new Error("User not found");
 
   const server = await getVpnServer(config.serverId);
-  const email = buildClientLabel(
+  const email = buildClientLabelArg(
     user.first_name,
     user.telegram_username,
     user.telegram_id
@@ -466,7 +466,12 @@ export function createBot(config: BotConfig): Bot {
 
       if (user.xray_uuid) {
         const server = await getVpnServer(config.serverId);
-        await revokeBotUserEverywhere(config, server, user.xray_uuid);
+        const email = buildClientLabelArg(
+          user.first_name,
+          user.telegram_username,
+          user.telegram_id
+        );
+        await revokeBotUserEverywhere(config, server, user.xray_uuid, email);
       }
 
       await updateBotUser(user.id, {

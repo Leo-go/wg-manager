@@ -63,6 +63,7 @@ import copy
 import json
 import os
 import secrets
+import shutil
 import sqlite3
 import string
 import subprocess
@@ -72,7 +73,10 @@ from pathlib import Path
 
 action = os.environ["ACTION"]
 uuid = os.environ.get("UUID", "")
-email = os.environ.get("EMAIL", "")
+email_raw = os.environ.get("EMAIL", "")
+# Comma-separated aliases: primary first, then legacy labels for cleanup.
+emails = [e.strip() for e in email_raw.split(",") if e.strip()]
+primary_email = emails[0] if emails else ""
 config_path = os.environ.get("CONFIG", "").strip()
 xui_db = os.environ.get("XUI_DB", "").strip()
 port_raw = os.environ.get("XRAY_INBOUND_PORT", "").strip()
@@ -83,6 +87,39 @@ def vless_inbounds(cfg):
     if inbound_port is not None:
         rows = [ib for ib in rows if ib.get("port") == inbound_port]
     return rows
+
+def client_matches(c):
+    if uuid and c.get("id") == uuid:
+        return True
+    em = c.get("email")
+    if em and em in emails:
+        return True
+    return False
+
+def dedupe_clients(clients):
+    """Keep last occurrence of each uuid and each non-empty email.
+    Broken configs with duplicate emails make *any* later restart fail —
+    the error names the stale user, not the person clicking Connect."""
+    by_uuid = {}
+    no_id = []
+    for c in clients:
+        cid = c.get("id")
+        if not cid:
+            no_id.append(c)
+            continue
+        by_uuid[cid] = c
+    ordered = list(by_uuid.values()) + no_id
+    seen_emails = set()
+    out = []
+    for c in reversed(ordered):
+        em = c.get("email")
+        if em:
+            if em in seen_emails:
+                continue
+            seen_emails.add(em)
+        out.append(c)
+    out.reverse()
+    return out
 
 def build_client(existing):
     """Clone 3x-ui/Xray client shape so the panel does not drop the row on restart."""
@@ -101,8 +138,8 @@ def build_client(existing):
         }
     client["id"] = uuid
     client["enable"] = True
-    if email:
-        client["email"] = email
+    if primary_email:
+        client["email"] = primary_email
     elif not client.get("email"):
         client["email"] = f"tg-{uuid[:8]}"
     client["expiryTime"] = 0
@@ -112,11 +149,10 @@ def build_client(existing):
     return client
 
 def mutate_clients(clients):
-    others = [c for c in clients if c.get("id") != uuid]
+    others = [c for c in clients if not client_matches(c)]
     if action == "add":
         others.append(build_client(others))
-        return others
-    return others
+    return dedupe_clients(others)
 
 def _token(n=16):
     alphabet = string.ascii_lowercase + string.digits
@@ -132,6 +168,15 @@ def _table_exists(conn, name):
 def _table_columns(conn, name):
     return {r[1] for r in conn.execute(f"PRAGMA table_info({name})")}
 
+def _delete_xui_client_row(conn, row, cols):
+    cid = row["id"]
+    old_email = row["email"] if "email" in row.keys() else None
+    if _table_exists(conn, "client_inbounds"):
+        conn.execute("DELETE FROM client_inbounds WHERE client_id = ?", (cid,))
+    if _table_exists(conn, "client_traffics") and old_email:
+        conn.execute("DELETE FROM client_traffics WHERE email = ?", (old_email,))
+    conn.execute("DELETE FROM clients WHERE id = ?", (cid,))
+
 def sync_xui_clients_table(conn, inbound_ids):
     """3x-ui 3.3+ generates live Xray clients from `clients` + `client_inbounds`,
     not from inbounds.settings. Writing only the JSON leaves the UUID dead."""
@@ -141,25 +186,50 @@ def sync_xui_clients_table(conn, inbound_ids):
     if "uuid" not in cols:
         return
     now = int(time.time() * 1000)
-    resolved_email = email or f"tg-{uuid[:8]}"
+    resolved_email = primary_email or f"tg-{uuid[:8]}"
     row = conn.execute("SELECT * FROM clients WHERE uuid = ?", (uuid,)).fetchone()
     if action == "remove":
-        if not row:
-            return
-        cid = row["id"]
-        old_email = row["email"] if "email" in row.keys() else resolved_email
-        if _table_exists(conn, "client_inbounds"):
-            conn.execute("DELETE FROM client_inbounds WHERE client_id = ?", (cid,))
-        if _table_exists(conn, "client_traffics") and old_email:
-            conn.execute("DELETE FROM client_traffics WHERE email = ?", (old_email,))
-        conn.execute("DELETE FROM clients WHERE id = ?", (cid,))
+        targets = []
+        if row:
+            targets.append(row)
+        if emails and "email" in cols:
+            for em in emails:
+                for r in conn.execute(
+                    "SELECT * FROM clients WHERE email = ?", (em,)
+                ).fetchall():
+                    if all(t["id"] != r["id"] for t in targets):
+                        targets.append(r)
+        for target in targets:
+            _delete_xui_client_row(conn, target, cols)
         return
     if action != "add":
         return
+    # Drop stale rows that share a legacy/primary email but a different uuid.
+    if emails and "email" in cols:
+        for em in emails:
+            for stale in conn.execute(
+                "SELECT * FROM clients WHERE email = ? AND uuid != ?",
+                (em, uuid),
+            ).fetchall():
+                _delete_xui_client_row(conn, stale, cols)
+        row = conn.execute(
+            "SELECT * FROM clients WHERE uuid = ?", (uuid,)
+        ).fetchone()
     if row:
         cid = row["id"]
-        resolved_email = row["email"] or resolved_email
-        if "enable" in cols and "updated_at" in cols:
+        if "email" in cols and primary_email:
+            if "updated_at" in cols:
+                conn.execute(
+                    "UPDATE clients SET email = ?, enable = 1, expiry_time = 0, updated_at = ? WHERE id = ?",
+                    (primary_email, now, cid),
+                )
+            else:
+                conn.execute(
+                    "UPDATE clients SET email = ?, enable = 1 WHERE id = ?",
+                    (primary_email, cid),
+                )
+            resolved_email = primary_email
+        elif "enable" in cols and "updated_at" in cols:
             conn.execute(
                 "UPDATE clients SET enable = 1, expiry_time = 0, updated_at = ? WHERE id = ?",
                 (now, cid),
@@ -302,10 +372,22 @@ def run_file_backend():
     for ib in inbounds:
         settings = ib.setdefault("settings", {})
         settings["clients"] = mutate_clients(list(settings.get("clients") or []))
+    # Heal duplicate emails in every vless inbound (port filter may skip some).
+    for ib in cfg.get("inbounds", []):
+        if ib.get("protocol") != "vless":
+            continue
+        settings = ib.setdefault("settings", {})
+        settings["clients"] = dedupe_clients(list(settings.get("clients") or []))
+    backup_path = config_path + ".bak"
+    shutil.copy2(config_path, backup_path)
     with open(config_path, "w", encoding="utf-8") as f:
         json.dump(cfg, f, indent=2)
         f.write("\n")
-    restart_standalone(config_path)
+    try:
+        restart_standalone(config_path)
+    except Exception:
+        shutil.copy2(backup_path, config_path)
+        raise
     print(f"OK {action} {uuid}")
 
 def run_xui_backend():

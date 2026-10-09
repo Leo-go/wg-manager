@@ -5,7 +5,10 @@ import {
   normalizeCdnClientHost,
 } from "@/lib/cdn/build-client-url";
 import type { BotConfig } from "@/lib/bot/config";
-import { buildClientLabel, swapVlessUuid } from "@/lib/bot/build-vless-url";
+import {
+  buildClientLabelArg,
+  swapVlessUuid,
+} from "@/lib/bot/build-vless-url";
 import { getVpnServer } from "@/lib/bot/db";
 import {
   attachHomeJump,
@@ -222,7 +225,7 @@ export async function provisionBotUserClient(
   }
 
   const uuid = user.xray_uuid?.trim() || randomUUID();
-  const email = buildClientLabel(
+  const email = buildClientLabelArg(
     user.first_name,
     user.telegram_username,
     user.telegram_id
@@ -246,7 +249,7 @@ export async function provisionBotUserDual(
   >
 ): Promise<ProvisionedClient> {
   const mobile = await provisionBotUserClient(mobileServer, user);
-  const email = buildClientLabel(
+  const email = buildClientLabelArg(
     user.first_name,
     user.telegram_username,
     user.telegram_id
@@ -261,23 +264,25 @@ export async function provisionBotUserDual(
 
 export async function revokeBotUserClient(
   server: Server,
-  uuid: string
+  uuid: string,
+  email?: string
 ): Promise<void> {
-  await runXrayClientAction(server, "remove", uuid);
+  await runXrayClientAction(server, "remove", uuid, email);
 }
 
 export async function revokeBotUserEverywhere(
   config: BotConfig,
   mobileServer: Server,
-  uuid: string
+  uuid: string,
+  email?: string
 ): Promise<void> {
   const errors: string[] = [];
   try {
-    await revokeBotUserClient(mobileServer, uuid);
+    await revokeBotUserClient(mobileServer, uuid, email);
   } catch (error) {
     errors.push(error instanceof Error ? error.message : String(error));
   }
-  const home = await syncHomeProfile(config, uuid, "", "remove");
+  const home = await syncHomeProfile(config, uuid, email ?? "", "remove");
   if (home.error) errors.push(home.error);
   if (errors.length === 2) {
     throw new Error(errors.join("; "));
