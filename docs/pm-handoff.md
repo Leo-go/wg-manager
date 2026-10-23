@@ -84,3 +84,13 @@ Cursor не режет историю пополам. Рабочая схема:
 - `www.wg-manager.online` → A `188.72.103.4`, TCP 443 open, TLS 1.3, GET/OPTIONS `/cdn-check` **HTTP 204**. Значит с этой сети CDN не «мёртвый»; если у друга VPN не встаёт — это DNS/IP/DPI **его** оператора или отпечаток xHTTP. Скрипт нужно прогнать с хотспота, где ломается.
 - `94.103.15.20:2053` TCP **open** — Reality-порт жив. `:22` тоже open, но SSH без ключа/пароля закрывает сессию (`Connection closed`). Jump `216.57.107.94` с этой сети timeout. Админка: `ssh -J root@216.57.107.94 root@94.103.15.20` с ключом, либо VNC хостера.
 - На хосте: `xray-client-manager.sh add <uuid> <email>` — персональные UUID, не общий JSON из Hiddify.
+
+---
+
+## Next (складчина, по порядку)
+
+1. **Health cron** — TCP `94.103.15.20:2053` + GET `https://www.wg-manager.online/cdn-check` → DM админам при падении.
+2. **Traffic metering** — Origin xray Stats по UUID → Supabase + `/traffic` админу (потом soft cut CDN).
+3. **Home Reality `:443`** — у всех «мёртв дом» часто DPI на non-443; на хосте уже есть `in-443-tcp` (microsoft SNI, мало клиентов). Перевести шаблон дома на `:443` и синхронизировать UUID с 2053.
+4. **CDN key push-reissue** — при смене шаблона xHTTP не ждать Connect; админ-команда или DM «нажмите Подключиться».
+5. Admin `/broadcast_group <url>` — разовая/редкая рассылка всем `bot_users` (уже в боте после деплоя).

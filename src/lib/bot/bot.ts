@@ -97,6 +97,12 @@ function welcomeText(config: BotConfig): string {
   ].join("\n");
 }
 
+function sleepMs(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
 async function replyError(ctx: Context, error: unknown): Promise<void> {
   const text = `❌ Ошибка: ${formatBotError(error)}`;
   console.error("Telegram bot handler error:", error);
@@ -512,6 +518,101 @@ export function createBot(config: BotConfig): Bot {
     }
   });
 
+  bot.command("broadcast_group", async (ctx) => {
+    try {
+      if (!requireAdmin(ctx, config)) {
+        await replyNotAdmin(ctx);
+        return;
+      }
+      const arg = (ctx.match ?? "").toString().trim();
+      if (!arg) {
+        await ctx.reply(
+          [
+            "Использование:",
+            "/broadcast_group dry-run",
+            "/broadcast_group https://t.me/+…",
+          ].join("\n")
+        );
+        return;
+      }
+
+      const users = await listBotUsers();
+      if (arg.toLowerCase() === "dry-run") {
+        await ctx.reply(
+          `Рассылка (dry-run): получателей ${users.length}. Ссылка не отправлялась.`
+        );
+        return;
+      }
+
+      if (!/^https:\/\/t\.me\/\S+$/i.test(arg)) {
+        await ctx.reply(
+          "Нужна ссылка вида https://t.me/+… или https://t.me/…"
+        );
+        return;
+      }
+
+      const text = [
+        "👋 Вы в боте складчины VPN, но могли ещё не быть в группе.",
+        "",
+        "Там новости, закрепы и помощь. Вступите по ссылке:",
+        arg,
+        "",
+        "Ключи по-прежнему в боте → «Подключиться».",
+      ].join("\n");
+
+      await ctx.reply(
+        `Начинаю рассылку ${users.length} пользователям… Это займёт около минуты.`
+      );
+
+      let sent = 0;
+      let blocked = 0;
+      let failed = 0;
+
+      for (const user of users) {
+        try {
+          await bot.api.sendMessage(user.telegram_id, text);
+          sent += 1;
+        } catch (error) {
+          const msg =
+            error instanceof Error ? error.message.toLowerCase() : String(error);
+          if (
+            msg.includes("blocked") ||
+            msg.includes("deactivated") ||
+            msg.includes("forbidden") ||
+            msg.includes("chat not found")
+          ) {
+            blocked += 1;
+          } else if (msg.includes("retry after") || msg.includes("too many")) {
+            const waitMatch = msg.match(/retry after (\d+)/i);
+            const waitSec = waitMatch ? Number(waitMatch[1]) : 3;
+            await sleepMs(Math.min(Math.max(waitSec, 1), 30) * 1000);
+            try {
+              await bot.api.sendMessage(user.telegram_id, text);
+              sent += 1;
+            } catch {
+              failed += 1;
+            }
+          } else {
+            failed += 1;
+          }
+        }
+        await sleepMs(45);
+      }
+
+      await ctx.reply(
+        [
+          "Рассылка завершена.",
+          `✅ sent: ${sent}`,
+          `🚫 blocked/gone: ${blocked}`,
+          `❌ failed: ${failed}`,
+          `Σ total: ${users.length}`,
+        ].join("\n")
+      );
+    } catch (error) {
+      await replyError(ctx, error);
+    }
+  });
+
   bot.on("callback_query:data", async (ctx) => {
     const data = ctx.callbackQuery.data;
     await ctx.answerCallbackQuery().catch(() => undefined);
@@ -668,7 +769,7 @@ function helpText(config: BotConfig): string {
     "   • Windows — v2rayN · Mac — Happ desktop",
     "2. «Поддержать» → Stars ⭐ или СБП.",
     "3. «Подключиться» — два ключа: 🏠 дом и 📱 мобильный.",
-    "4. Сначала дом. Если не встаёт (часть мобильных) — мобильный ключ.",
+    "4. Wi‑Fi → дом. Сотовая → мобильный. На Wi‑Fi мобильный не держите (CDN платный).",
     "5. Импорт из буфера → Connect. Если нет интернета — ВЫКЛЮЧИТЕ VPN.",
     "",
     "🏠 Дом (Reality): v2rayNG / INCY / Happ / Hiddify.",
@@ -785,7 +886,8 @@ async function handleConnect(ctx: Context, config: BotConfig, bot: Bot) {
     [
       "🔌 Ваши ключи VPN",
       "",
-      "Сначала 🏠 дом. Если не коннектится — 📱 мобильный.",
+      "Wi‑Fi / офис → 🏠 дом. Сотовая → 📱 мобильный.",
+      "На Wi‑Fi не оставляйте мобильный ключ: CDN платный.",
       "Нет интернета после включения — выключите VPN в клиенте.",
       "",
       "Дом: v2rayNG / INCY / Happ / Hiddify.",
