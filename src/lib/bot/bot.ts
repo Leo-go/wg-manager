@@ -63,6 +63,8 @@ import {
   revokeBotUserEverywhere,
   buildClientUrls,
   botCdnUrlNeedsRefresh,
+  botHomeUrlNeedsRefresh,
+  runXrayClientAction,
   syncHomeProfile,
 } from "@/lib/bot/xray-clients";
 
@@ -176,6 +178,10 @@ async function ensureProvisioned(
   );
 
   if (user.vless_config_url && user.xray_uuid) {
+    // Always re-add UUID on Origin: URL refresh alone left orphan keys when
+    // Origin config was rebuilt / client was never written (invalid CDN links).
+    await runXrayClientAction(server, "add", user.xray_uuid, email);
+
     const patch: {
       vless_config_url?: string;
       vless_tcp_config_url?: string | null;
@@ -186,7 +192,12 @@ async function ensureProvisioned(
       patch.vless_config_url = urls.vlessConfigUrl;
     }
 
-    if (!user.vless_tcp_config_url) {
+    const homeTemplate =
+      process.env.TELEGRAM_BOT_HOME_VLESS_TEMPLATE?.trim() || null;
+    if (
+      !user.vless_tcp_config_url ||
+      botHomeUrlNeedsRefresh(user.vless_tcp_config_url, homeTemplate)
+    ) {
       const home = await syncHomeProfile(config, user.xray_uuid, email, "add");
       if (home.url) patch.vless_tcp_config_url = home.url;
     }
@@ -396,7 +407,7 @@ export function createBot(config: BotConfig): Bot {
           "",
           "Перешлите APK (v2rayNG) + оба ключа: 🏠 дом и 📱 мобильный.",
           provisioned.homeError
-            ? `⚠️ Домашний ключ не записался на 94.103: ${provisioned.homeError}`
+            ? `⚠️ Домашний ключ (RU relay) не записался: ${provisioned.homeError}`
             : "",
         ]
           .filter(Boolean)
@@ -901,7 +912,7 @@ async function handleConnect(ctx: Context, config: BotConfig, bot: Bot) {
 
   if (!homeUrl && isHomeProfileEnabled(config)) {
     await ctx.reply(
-      "⚠️ Домашний ключ не записался на 94.103. Пользуйтесь 📱 мобильным и напишите админу."
+      "⚠️ Домашний ключ (RU relay) не записался. Пользуйтесь 📱 мобильным и напишите админу."
     );
   }
 }

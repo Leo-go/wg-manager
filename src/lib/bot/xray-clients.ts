@@ -179,6 +179,12 @@ async function resolveHomeSpec(
   }
   if (!spec) return null;
 
+  // RU relay (5.129) is reachable from Vercel directly; jump was for 94.103:22 DPI.
+  const noJump =
+    process.env.TELEGRAM_BOT_HOME_SSH_NO_JUMP?.trim() === "1" ||
+    spec.target.ssh.host === "5.129.215.254";
+  if (noJump) return spec;
+
   try {
     const mobileServer = await getVpnServer(config.serverId);
     spec = attachHomeJump(spec, resolveBotProvisionTarget(mobileServer).ssh);
@@ -188,26 +194,64 @@ async function resolveHomeSpec(
   return spec;
 }
 
+/** Home inbound listen port (RU relay xHTTP :443; legacy Reality was :2053). */
+export function homeInboundPort(): number {
+  const raw = process.env.TELEGRAM_BOT_HOME_INBOUND_PORT?.trim();
+  const n = raw ? Number(raw) : 443;
+  return Number.isInteger(n) && n > 0 ? n : 443;
+}
+
+/**
+ * True if stored home key does not match the current HOME template
+ * (e.g. still 94.103:2053 TCP after switch to RU relay xHTTP :443).
+ */
+export function botHomeUrlNeedsRefresh(
+  storedUrl: string | null | undefined,
+  template: string | null | undefined
+): boolean {
+  if (!template?.trim()) return false;
+  if (!storedUrl?.trim()) return true;
+
+  const hostOf = (u: string) => u.match(/^vless:\/\/[^@]+@([^:?/]+)/i)?.[1]?.toLowerCase();
+  const portOf = (u: string) => u.match(/^vless:\/\/[^@]+@[^:]+:(\d+)/i)?.[1];
+  const typeOf = (u: string) => u.match(/[?&]type=([^&]+)/i)?.[1]?.toLowerCase();
+
+  const expHost = hostOf(template);
+  const curHost = hostOf(storedUrl);
+  if (expHost && curHost && expHost !== curHost) return true;
+
+  const expPort = portOf(template);
+  const curPort = portOf(storedUrl);
+  if (expPort && curPort && expPort !== curPort) return true;
+
+  const expType = typeOf(template);
+  const curType = typeOf(storedUrl);
+  if (expType && curType && expType !== curType) return true;
+
+  return false;
+}
+
 export async function syncHomeProfile(
   config: BotConfig,
   uuid: string,
   email: string,
   action: "add" | "remove"
-): Promise<{ url: string | null; error?: string }> {
+): Promise<{ url: string | null; error?: string; template?: string }> {
   const spec = await resolveHomeSpec(config);
   if (!spec) return { url: null };
 
   try {
     await runXrayClientOnTarget(spec.target, action, uuid, email, {
-      inboundPort: 2053,
+      inboundPort: homeInboundPort(),
     });
     return {
       url: action === "add" ? buildHomeVlessUrl(spec.vlessTemplate, uuid) : null,
+      template: spec.vlessTemplate,
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error(`home Reality ${action} failed (${spec.label}):`, error);
-    return { url: null, error: message };
+    console.error(`home profile ${action} failed (${spec.label}):`, error);
+    return { url: null, error: message, template: spec.vlessTemplate };
   }
 }
 

@@ -5,7 +5,7 @@ export type BotConfig = {
   token: string;
   adminIds: string[];
   serverId: string;
-  /** Optional dashboard servers.id for home Reality (94.103.15.20). */
+  /** Optional dashboard servers.id for home/RU-relay profile. */
   homeServerId?: string;
   donateDetails: string;
   suggestedDonationRub: number;
