@@ -3,7 +3,9 @@
 # Usage: xray-client-manager.sh <add|remove|list> [uuid] [email]
 # Optional env:
 #   XRAY_CONFIG         explicit config.json
-#   XRAY_INBOUND_PORT   only touch this listen port (home Reality 2053)
+#   XRAY_INBOUND_PORT   only touch this listen port (RU relay :443 / legacy :2053)
+# add is idempotent: if UUID already enabled, prints "OK skip" and does NOT
+# restart xray/x-ui (avoids dropping every online user on each Connect).
 set -euo pipefail
 
 ACTION="${1:?action required: add|remove|list}"
@@ -148,11 +150,50 @@ def build_client(existing):
         client["subId"] = "".join(secrets.choice(alphabet) for _ in range(16))
     return client
 
+def uuid_enabled(clients):
+    for c in clients:
+        if c.get("id") == uuid and c.get("enable", True) is not False:
+            return True
+    return False
+
 def mutate_clients(clients):
-    others = [c for c in clients if not client_matches(c)]
+    """Idempotent upsert/remove. Prefer in-place update when UUID already exists."""
     if action == "add":
-        others.append(build_client(others))
-    return dedupe_clients(others)
+        if any(c.get("id") == uuid for c in clients):
+            out = []
+            for c in clients:
+                if c.get("id") == uuid:
+                    c = copy.deepcopy(c)
+                    c["enable"] = True
+                    if primary_email:
+                        c["email"] = primary_email
+                    c["expiryTime"] = 0
+                    out.append(c)
+                elif primary_email and c.get("email") == primary_email:
+                    # Drop stale row that stole the email under another uuid.
+                    continue
+                elif client_matches(c):
+                    continue
+                else:
+                    out.append(c)
+            return dedupe_clients(out)
+        matched = [c for c in clients if client_matches(c)]
+        others = [c for c in clients if not client_matches(c)]
+        others.append(build_client(matched))
+        return dedupe_clients(others)
+    if action == "remove":
+        return dedupe_clients([c for c in clients if not client_matches(c)])
+    return clients
+
+def runtime_reload_needed(before_clients, after_clients):
+    """Restart Xray only when the live auth set changes (new/removed/re-enabled UUID)."""
+    if action == "add":
+        return not uuid_enabled(before_clients) and uuid_enabled(after_clients)
+    if action == "remove":
+        before_ids = {c.get("id") for c in before_clients if c.get("id")}
+        after_ids = {c.get("id") for c in after_clients if c.get("id")}
+        return uuid in before_ids and uuid not in after_ids
+    return before_clients != after_clients
 
 def _token(n=16):
     alphabet = string.ascii_lowercase + string.digits
@@ -369,15 +410,36 @@ def run_file_backend():
     if not uuid:
         print("ERROR: uuid required", file=sys.stderr)
         sys.exit(1)
+    need_reload = False
     for ib in inbounds:
         settings = ib.setdefault("settings", {})
-        settings["clients"] = mutate_clients(list(settings.get("clients") or []))
+        before = list(settings.get("clients") or [])
+        after = mutate_clients(before)
+        if after != before:
+            settings["clients"] = after
+        if runtime_reload_needed(before, after):
+            need_reload = True
     # Heal duplicate emails in every vless inbound (port filter may skip some).
     for ib in cfg.get("inbounds", []):
         if ib.get("protocol") != "vless":
             continue
         settings = ib.setdefault("settings", {})
-        settings["clients"] = dedupe_clients(list(settings.get("clients") or []))
+        before = list(settings.get("clients") or [])
+        after = dedupe_clients(before)
+        if after != before:
+            settings["clients"] = after
+            # Dedupe removed a live uuid duplicate — reload to drop the stale peer.
+            before_ids = [c.get("id") for c in before if c.get("id")]
+            after_ids = [c.get("id") for c in after if c.get("id")]
+            if len(before_ids) != len(after_ids) or sorted(before_ids) != sorted(set(after_ids)):
+                need_reload = True
+    if not need_reload:
+        # Persist email/enable tweaks without bouncing every online user.
+        with open(config_path, "w", encoding="utf-8") as f:
+            json.dump(cfg, f, indent=2)
+            f.write("\n")
+        print(f"OK skip {action} {uuid} (already present, no xray restart)")
+        return
     backup_path = config_path + ".bak"
     shutil.copy2(config_path, backup_path)
     with open(config_path, "w", encoding="utf-8") as f:
@@ -433,16 +495,44 @@ def run_xui_backend():
         print(f"ERROR: no vless inbound{hint} in 3x-ui db", file=sys.stderr)
         sys.exit(1)
     inbound_ids = [row["id"] for row in rows]
+    need_reload = False
     for row in rows:
         settings = json.loads(row["settings"] or "{}")
-        settings["clients"] = mutate_clients(list(settings.get("clients") or []))
-        conn.execute(
-            "UPDATE inbounds SET settings = ? WHERE id = ?",
-            (json.dumps(settings, ensure_ascii=False), row["id"]),
-        )
+        before = list(settings.get("clients") or [])
+        after = mutate_clients(before)
+        if after != before:
+            settings["clients"] = after
+            conn.execute(
+                "UPDATE inbounds SET settings = ? WHERE id = ?",
+                (json.dumps(settings, ensure_ascii=False), row["id"]),
+            )
+        if runtime_reload_needed(before, after):
+            need_reload = True
+    # clients table may lack the uuid even when inbound JSON already has it
+    if action == "add" and _table_exists(conn, "clients"):
+        cols = _table_columns(conn, "clients")
+        if "uuid" in cols:
+            row = conn.execute(
+                "SELECT enable FROM clients WHERE uuid = ?", (uuid,)
+            ).fetchone()
+            if row is None:
+                need_reload = True
+            elif "enable" in cols and not row["enable"]:
+                need_reload = True
+    elif action == "remove" and _table_exists(conn, "clients"):
+        cols = _table_columns(conn, "clients")
+        if "uuid" in cols:
+            row = conn.execute(
+                "SELECT 1 FROM clients WHERE uuid = ?", (uuid,)
+            ).fetchone()
+            if row is not None:
+                need_reload = True
     sync_xui_clients_table(conn, inbound_ids)
     conn.commit()
     conn.close()
+    if not need_reload:
+        print(f"OK skip {action} {uuid} x-ui (already present, no restart)")
+        return
     restart_xui()
     print(f"OK {action} {uuid} x-ui")
 
