@@ -122,6 +122,66 @@ function requireAdmin(ctx: Context, config: BotConfig): boolean {
   return false;
 }
 
+type BroadcastStats = {
+  sent: number;
+  blocked: number;
+  failed: number;
+  total: number;
+};
+
+async function broadcastTextToUsers(
+  bot: Bot,
+  users: Awaited<ReturnType<typeof listBotUsers>>,
+  text: string
+): Promise<BroadcastStats> {
+  let sent = 0;
+  let blocked = 0;
+  let failed = 0;
+
+  for (const user of users) {
+    try {
+      await bot.api.sendMessage(user.telegram_id, text);
+      sent += 1;
+    } catch (error) {
+      const msg =
+        error instanceof Error ? error.message.toLowerCase() : String(error);
+      if (
+        msg.includes("blocked") ||
+        msg.includes("deactivated") ||
+        msg.includes("forbidden") ||
+        msg.includes("chat not found")
+      ) {
+        blocked += 1;
+      } else if (msg.includes("retry after") || msg.includes("too many")) {
+        const waitMatch = msg.match(/retry after (\d+)/i);
+        const waitSec = waitMatch ? Number(waitMatch[1]) : 3;
+        await sleepMs(Math.min(Math.max(waitSec, 1), 30) * 1000);
+        try {
+          await bot.api.sendMessage(user.telegram_id, text);
+          sent += 1;
+        } catch {
+          failed += 1;
+        }
+      } else {
+        failed += 1;
+      }
+    }
+    await sleepMs(45);
+  }
+
+  return { sent, blocked, failed, total: users.length };
+}
+
+function formatBroadcastStats(stats: BroadcastStats): string {
+  return [
+    "Рассылка завершена.",
+    `✅ sent: ${stats.sent}`,
+    `🚫 blocked/gone: ${stats.blocked}`,
+    `❌ failed: ${stats.failed}`,
+    `Σ total: ${stats.total}`,
+  ].join("\n");
+}
+
 async function replyNotAdmin(ctx: Context): Promise<void> {
   const id = ctx.from?.id;
   await ctx.reply(
@@ -529,6 +589,72 @@ export function createBot(config: BotConfig): Bot {
     }
   });
 
+  bot.command("broadcast", async (ctx) => {
+    try {
+      if (!requireAdmin(ctx, config)) {
+        await replyNotAdmin(ctx);
+        return;
+      }
+
+      const raw = (ctx.match ?? "").toString().trim();
+      if (!raw) {
+        await ctx.reply(
+          [
+            "Своё сообщение всем из bot_users:",
+            "",
+            "Превью (никому не уйдёт):",
+            "/broadcast dry-run",
+            "Ваш текст…",
+            "",
+            "Отправка:",
+            "/broadcast",
+            "Ваш текст…",
+            "",
+            "Несколько строк — в одном сообщении после команды.",
+          ].join("\n")
+        );
+        return;
+      }
+
+      const dryRun = /^dry-run(?:\s|$)/i.test(raw);
+      const text = dryRun ? raw.replace(/^dry-run\s*/i, "").trim() : raw;
+      const users = await listBotUsers();
+
+      if (dryRun) {
+        if (!text) {
+          await ctx.reply(
+            `Рассылка (dry-run): получателей ${users.length}. Текст не задан.`
+          );
+          return;
+        }
+        await ctx.reply(
+          [
+            `Рассылка (dry-run): получателей ${users.length}. Не отправлялось.`,
+            "",
+            "— превью —",
+            text,
+          ].join("\n")
+        );
+        return;
+      }
+
+      if (text.length > 3900) {
+        await ctx.reply(
+          `Слишком длинно (${text.length} символов). Лимит Telegram ~4096, оставьте запас.`
+        );
+        return;
+      }
+
+      await ctx.reply(
+        `Начинаю рассылку ${users.length} пользователям… Это займёт около минуты.`
+      );
+      const stats = await broadcastTextToUsers(bot, users, text);
+      await ctx.reply(formatBroadcastStats(stats));
+    } catch (error) {
+      await replyError(ctx, error);
+    }
+  });
+
   bot.command("broadcast_group", async (ctx) => {
     try {
       if (!requireAdmin(ctx, config)) {
@@ -542,6 +668,8 @@ export function createBot(config: BotConfig): Bot {
             "Использование:",
             "/broadcast_group dry-run",
             "/broadcast_group https://t.me/+…",
+            "",
+            "Свободный текст: /broadcast",
           ].join("\n")
         );
         return;
@@ -557,7 +685,7 @@ export function createBot(config: BotConfig): Bot {
 
       if (!/^https:\/\/t\.me\/\S+$/i.test(arg)) {
         await ctx.reply(
-          "Нужна ссылка вида https://t.me/+… или https://t.me/…"
+          "Нужна ссылка вида https://t.me/+… или https://t.me/…\nИли свой текст: /broadcast"
         );
         return;
       }
@@ -574,51 +702,8 @@ export function createBot(config: BotConfig): Bot {
       await ctx.reply(
         `Начинаю рассылку ${users.length} пользователям… Это займёт около минуты.`
       );
-
-      let sent = 0;
-      let blocked = 0;
-      let failed = 0;
-
-      for (const user of users) {
-        try {
-          await bot.api.sendMessage(user.telegram_id, text);
-          sent += 1;
-        } catch (error) {
-          const msg =
-            error instanceof Error ? error.message.toLowerCase() : String(error);
-          if (
-            msg.includes("blocked") ||
-            msg.includes("deactivated") ||
-            msg.includes("forbidden") ||
-            msg.includes("chat not found")
-          ) {
-            blocked += 1;
-          } else if (msg.includes("retry after") || msg.includes("too many")) {
-            const waitMatch = msg.match(/retry after (\d+)/i);
-            const waitSec = waitMatch ? Number(waitMatch[1]) : 3;
-            await sleepMs(Math.min(Math.max(waitSec, 1), 30) * 1000);
-            try {
-              await bot.api.sendMessage(user.telegram_id, text);
-              sent += 1;
-            } catch {
-              failed += 1;
-            }
-          } else {
-            failed += 1;
-          }
-        }
-        await sleepMs(45);
-      }
-
-      await ctx.reply(
-        [
-          "Рассылка завершена.",
-          `✅ sent: ${sent}`,
-          `🚫 blocked/gone: ${blocked}`,
-          `❌ failed: ${failed}`,
-          `Σ total: ${users.length}`,
-        ].join("\n")
-      );
+      const stats = await broadcastTextToUsers(bot, users, text);
+      await ctx.reply(formatBroadcastStats(stats));
     } catch (error) {
       await replyError(ctx, error);
     }
