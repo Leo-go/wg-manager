@@ -218,6 +218,10 @@ export function botHomeUrlNeedsRefresh(
 
   const expHost = hostOf(template);
   const curHost = hostOf(storedUrl);
+  // Do not roll RU relay keys back if Production env still has legacy 94.103 template.
+  if (curHost === "5.129.215.254" && expHost && expHost !== "5.129.215.254") {
+    return false;
+  }
   if (expHost && curHost && expHost !== curHost) return true;
 
   const expPort = portOf(template);

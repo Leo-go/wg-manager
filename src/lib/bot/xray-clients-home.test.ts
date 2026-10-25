@@ -24,6 +24,14 @@ describe("botHomeUrlNeedsRefresh", () => {
   it("treats missing stored URL as needing refresh when template set", () => {
     expect(botHomeUrlNeedsRefresh(null, RU_TEMPLATE)).toBe(true);
   });
+
+  it("does not roll RU relay back to a legacy 94.103 template", () => {
+    const ruStored =
+      "vless://a3f0c8cf-498a-4cd0-867a-2a0a6cf13e9c@5.129.215.254:443?type=xhttp#WG-HOME";
+    const legacyTemplate =
+      "vless://00000000-0000-4000-8000-000000000001@94.103.15.20:2053?type=tcp#WG-HOME";
+    expect(botHomeUrlNeedsRefresh(ruStored, legacyTemplate)).toBe(false);
+  });
 });
 
 describe("homeInboundPort", () => {
