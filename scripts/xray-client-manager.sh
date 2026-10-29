@@ -59,6 +59,9 @@ export ACTION UUID EMAIL
 export CONFIG="${CONFIG:-}"
 export XUI_DB="${XUI_DB:-}"
 export XRAY_INBOUND_PORT="${XRAY_INBOUND_PORT:-}"
+export XRAY_API="${XRAY_API:-1}"
+export XRAY_API_ADDR="${XRAY_API_ADDR:-127.0.0.1:10085}"
+export XRAY_API_INBOUND_TAGS="${XRAY_API_INBOUND_TAGS:-}"
 
 python3 - << 'PY'
 import copy
@@ -361,12 +364,135 @@ def sync_xui_clients_table(conn, inbound_ids):
                 t_values,
             )
 
+def xray_bin():
+    p = "/usr/local/bin/xray"
+    return p if Path(p).is_file() else "xray"
+
 def restart_standalone(cfg_path):
-    xray = "/usr/local/bin/xray"
-    if not Path(xray).is_file():
-        xray = "xray"
-    subprocess.run([xray, "run", "-test", "-c", cfg_path], check=True)
+    subprocess.run([xray_bin(), "run", "-test", "-c", cfg_path], check=True)
     subprocess.run(["systemctl", "restart", "xray"], check=True)
+
+def api_enabled(cfg):
+    if os.environ.get("XRAY_API", "1").strip() in ("0", "false", "no"):
+        return False
+    api = cfg.get("api") or {}
+    if not api:
+        return False
+    for ib in cfg.get("inbounds", []):
+        if ib.get("tag") == "api" or ib.get("protocol") == "dokodemo-door":
+            listen = str(ib.get("listen") or "")
+            if listen in ("127.0.0.1", "localhost", "0.0.0.0", ""):
+                return True
+    return False
+
+def api_addr():
+    return os.environ.get("XRAY_API_ADDR", "127.0.0.1:10085").strip() or "127.0.0.1:10085"
+
+def api_inbound_tags(cfg, mutated_tags):
+    raw = os.environ.get("XRAY_API_INBOUND_TAGS", "").strip()
+    if raw:
+        return [t.strip() for t in raw.split(",") if t.strip()]
+    tags = [t for t in mutated_tags if t]
+    if tags:
+        return tags
+    # Prefer client-facing RU tags when present.
+    prefer = []
+    for ib in cfg.get("inbounds", []):
+        tag = str(ib.get("tag") or "")
+        if tag.startswith("ru-relay-in") or tag in ("vless-in", "inbound-vless"):
+            prefer.append(tag)
+    return prefer or [
+        str(ib.get("tag"))
+        for ib in vless_inbounds(cfg)
+        if ib.get("tag")
+    ]
+
+def try_api_hot_reload(cfg, action_name, client_obj, mutated_tags):
+    """Apply add/remove via Xray HandlerService without restarting the process."""
+    if not api_enabled(cfg):
+        return False
+    tags = api_inbound_tags(cfg, mutated_tags)
+    if not tags:
+        return False
+    server = api_addr()
+    xb = xray_bin()
+    try:
+        if action_name == "add":
+            payload = json.dumps([client_obj], ensure_ascii=False)
+            for tag in tags:
+                cmd = [
+                    xb,
+                    "api",
+                    "adu",
+                    f"-s={server}",
+                    f"-inbound={tag}",
+                ]
+                proc = subprocess.run(
+                    cmd,
+                    input=payload.encode("utf-8"),
+                    capture_output=True,
+                    check=False,
+                )
+                if proc.returncode != 0:
+                    # Older CLI uses --server=
+                    cmd2 = [
+                        xb,
+                        "api",
+                        "adu",
+                        f"--server={server}",
+                        f"--inbound={tag}",
+                    ]
+                    proc = subprocess.run(
+                        cmd2,
+                        input=payload.encode("utf-8"),
+                        capture_output=True,
+                        check=False,
+                    )
+                if proc.returncode != 0:
+                    err = (proc.stderr or proc.stdout or b"").decode(
+                        errors="replace"
+                    )[:300]
+                    print(f"WARN api adu {tag}: {err}", file=sys.stderr)
+                    return False
+            return True
+        if action_name == "remove":
+            emails_to_rm = []
+            if primary_email:
+                emails_to_rm.append(primary_email)
+            emails_to_rm.extend(e for e in emails if e not in emails_to_rm)
+            if not emails_to_rm and client_obj.get("email"):
+                emails_to_rm.append(client_obj["email"])
+            for tag in tags:
+                for em in emails_to_rm:
+                    cmd = [xb, "api", "rmu", f"-s={server}", f"-inbound={tag}", em]
+                    proc = subprocess.run(cmd, capture_output=True, check=False)
+                    if proc.returncode != 0:
+                        cmd2 = [
+                            xb,
+                            "api",
+                            "rmu",
+                            f"--server={server}",
+                            f"--inbound={tag}",
+                            em,
+                        ]
+                        proc = subprocess.run(
+                            cmd2, capture_output=True, check=False
+                        )
+                    # Missing user is OK on remove.
+                    if proc.returncode not in (0,):
+                        err = (proc.stderr or proc.stdout or b"").decode(
+                            errors="replace"
+                        )
+                        if "not found" not in err.lower() and "UserNotFound" not in err:
+                            print(f"WARN api rmu {tag} {em}: {err[:200]}", file=sys.stderr)
+                            return False
+            return True
+    except FileNotFoundError:
+        return False
+    except Exception as e:
+        print(f"WARN api hot reload failed: {e}", file=sys.stderr)
+        return False
+    return False
 
 def restart_xui():
     for cmd in (
@@ -411,12 +537,22 @@ def run_file_backend():
         print("ERROR: uuid required", file=sys.stderr)
         sys.exit(1)
     need_reload = False
+    mutated_tags = []
+    client_for_api = None
     for ib in inbounds:
         settings = ib.setdefault("settings", {})
         before = list(settings.get("clients") or [])
         after = mutate_clients(before)
         if after != before:
             settings["clients"] = after
+            tag = str(ib.get("tag") or "")
+            if tag:
+                mutated_tags.append(tag)
+            if action == "add":
+                for c in after:
+                    if c.get("id") == uuid:
+                        client_for_api = c
+                        break
         if runtime_reload_needed(before, after):
             need_reload = True
     # Heal duplicate emails in every vless inbound (port filter may skip some).
@@ -445,12 +581,17 @@ def run_file_backend():
     with open(config_path, "w", encoding="utf-8") as f:
         json.dump(cfg, f, indent=2)
         f.write("\n")
+    if client_for_api is None and action == "add":
+        client_for_api = build_client([])
+    if try_api_hot_reload(cfg, action, client_for_api or {"id": uuid, "email": primary_email or f"tg-{uuid[:8]}"}, mutated_tags):
+        print(f"OK api {action} {uuid}")
+        return
     try:
         restart_standalone(config_path)
     except Exception:
         shutil.copy2(backup_path, config_path)
         raise
-    print(f"OK {action} {uuid}")
+    print(f"OK {action} {uuid} (restart fallback)")
 
 def run_xui_backend():
     conn = sqlite3.connect(xui_db)

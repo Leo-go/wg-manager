@@ -8,6 +8,7 @@ import { createServiceClient } from "@/lib/supabase/admin";
 import type { BotUser } from "@/lib/supabase/types";
 import { getBotUserByTelegramId, updateBotUser } from "@/lib/bot/db";
 import { mainMenuKeyboard } from "@/lib/bot/keyboards";
+import { logBotKeyEvent } from "@/lib/bot/key-events";
 import { restoreVpnAccess } from "@/lib/bot/xray-clients";
 
 /** User-facing lines after payment / grant depending on whether keys already exist. */
@@ -126,30 +127,53 @@ export async function restoreSubscriptionAccess(
   config: BotConfig,
   user: BotUser
 ): Promise<{ user: BotUser; restored: boolean; homeError?: string }> {
-  const result = await restoreVpnAccess(config, user);
-  if (!result.restored) {
-    return { user, restored: false };
+  try {
+    const result = await restoreVpnAccess(config, user);
+    if (!result.restored) {
+      return { user, restored: false };
+    }
+
+    const patch: {
+      vless_config_url?: string;
+      vless_tcp_config_url?: string | null;
+    } = {};
+    if (result.vlessConfigUrl) patch.vless_config_url = result.vlessConfigUrl;
+    if (result.vlessTcpConfigUrl !== undefined) {
+      patch.vless_tcp_config_url = result.vlessTcpConfigUrl;
+    }
+
+    const updated =
+      Object.keys(patch).length > 0
+        ? await updateBotUser(user.id, patch)
+        : user;
+
+    await logBotKeyEvent({
+      botUserId: user.id,
+      telegramId: user.telegram_id,
+      xrayUuid: user.xray_uuid,
+      host: "both",
+      action: "restore",
+      ok: !result.homeError,
+      error: result.homeError ?? null,
+    });
+
+    return {
+      user: updated,
+      restored: true,
+      homeError: result.homeError,
+    };
+  } catch (error) {
+    await logBotKeyEvent({
+      botUserId: user.id,
+      telegramId: user.telegram_id,
+      xrayUuid: user.xray_uuid,
+      host: "both",
+      action: "restore",
+      ok: false,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
   }
-
-  const patch: {
-    vless_config_url?: string;
-    vless_tcp_config_url?: string | null;
-  } = {};
-  if (result.vlessConfigUrl) patch.vless_config_url = result.vlessConfigUrl;
-  if (result.vlessTcpConfigUrl !== undefined) {
-    patch.vless_tcp_config_url = result.vlessTcpConfigUrl;
-  }
-
-  const updated =
-    Object.keys(patch).length > 0
-      ? await updateBotUser(user.id, patch)
-      : user;
-
-  return {
-    user: updated,
-    restored: true,
-    homeError: result.homeError,
-  };
 }
 
 export async function confirmStarsPaymentWithRestore(

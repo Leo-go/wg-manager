@@ -7,6 +7,7 @@ import {
 import { createServiceClient } from "@/lib/supabase/admin";
 import type { BotUser } from "@/lib/supabase/types";
 import { getVpnServer, updateBotUser } from "@/lib/bot/db";
+import { logBotKeyEvent } from "@/lib/bot/key-events";
 import { revokeBotUserEverywhere } from "@/lib/bot/xray-clients";
 
 export type SubscriptionCronResult = {
@@ -81,19 +82,41 @@ export async function revokeUserVpnAccess(
   config: BotConfig,
   user: BotUser
 ): Promise<BotUser> {
-  if (user.xray_uuid) {
-    const server = await getVpnServer(config.serverId);
-    const email = buildClientLabelArg(
-      user.first_name,
-      user.telegram_username,
-      user.telegram_id
-    );
-    await revokeBotUserEverywhere(config, server, user.xray_uuid, email);
-  }
+  try {
+    if (user.xray_uuid) {
+      const server = await getVpnServer(config.serverId);
+      const email = buildClientLabelArg(
+        user.first_name,
+        user.telegram_username,
+        user.telegram_id
+      );
+      await revokeBotUserEverywhere(config, server, user.xray_uuid, email);
+    }
 
-  return updateBotUser(user.id, {
-    is_active: false,
-  });
+    const updated = await updateBotUser(user.id, {
+      is_active: false,
+    });
+    await logBotKeyEvent({
+      botUserId: user.id,
+      telegramId: user.telegram_id,
+      xrayUuid: user.xray_uuid,
+      host: "both",
+      action: "revoke",
+      ok: true,
+    });
+    return updated;
+  } catch (error) {
+    await logBotKeyEvent({
+      botUserId: user.id,
+      telegramId: user.telegram_id,
+      xrayUuid: user.xray_uuid,
+      host: "both",
+      action: "revoke",
+      ok: false,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
+  }
 }
 
 export function buildRenewalReminderText(user: BotUser): string {

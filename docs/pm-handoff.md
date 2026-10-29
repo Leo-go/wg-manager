@@ -89,8 +89,8 @@ Cursor не режет историю пополам. Рабочая схема:
 
 ## Next (складчина, по порядку)
 
-1. **Health cron** — TCP `94.103.15.20:2053` + GET `https://www.wg-manager.online/cdn-check` → DM админам при падении.
-2. **Traffic metering** — Origin xray Stats по UUID → Supabase + `/traffic` админу (потом soft cut CDN).
-3. **Home Reality `:443`** — у всех «мёртв дом» часто DPI на non-443; на хосте уже есть `in-443-tcp` (microsoft SNI, мало клиентов). Перевести шаблон дома на `:443` и синхронизировать UUID с 2053.
-4. **CDN key push-reissue** — при смене шаблона xHTTP не ждать Connect; админ-команда или DM «нажмите Подключиться».
-5. Admin `/broadcast_group <url>` — разовая/редкая рассылка всем `bot_users` (уже в боте после деплоя).
+1. **Health cron** — `/api/cron/bot-health` (каждые 30 мин): TCP `5.129.215.254:443` + GET `https://www.wg-manager.online/cdn-check` + WG handshake на RU → DM админам при hard-fail. (Сделано в коде; следить за алертами.)
+2. **Hot-add** — `xray-client-manager.sh` через API `:10085` без рестарта; на RU один раз `patch-ru-xray-api.sh` если API ещё нет.
+3. **WG runbook** — `setup-wg-home0.sh` + `patch-ru-exit-proxy-wg.sh`; см. `docs/home-wg-cutover.md`. Не гонять `FORCE_REINSTALL` без бэкапа.
+4. **Traffic metering** — Origin xray Stats по UUID → Supabase + `/traffic` админу (потом soft cut CDN).
+5. Admin `/broadcast_group <url>` — уже в боте; `/keylog <telegram_id>` — журнал `bot_key_events`.

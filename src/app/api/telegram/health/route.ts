@@ -98,10 +98,10 @@ export async function GET(request: Request): Promise<Response> {
         ),
         platformKeyConfigured: Boolean(process.env.WG_SSH_PRIVATE_KEY?.trim()),
       },
-      xrayClients: clients
+      clientCount: clients
         .split("\n")
         .map((line) => line.trim())
-        .filter(Boolean),
+        .filter(Boolean).length,
     });
   } catch (error) {
     let provisionMode: string | undefined;

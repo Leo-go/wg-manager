@@ -24,6 +24,7 @@ import {
   type BotProvisionTarget,
 } from "@/lib/bot/provision-target";
 import { runRemoteBashScript } from "@/lib/ssh/run-remote";
+import { logBotKeyEvent } from "@/lib/bot/key-events";
 import type { BotUser, Server } from "@/lib/supabase/types";
 
 export type ProvisionedClient = {
@@ -305,21 +306,43 @@ export async function provisionBotUserDual(
   mobileServer: Server,
   user: Pick<
     BotUser,
-    "telegram_id" | "telegram_username" | "first_name" | "xray_uuid"
+    "id" | "telegram_id" | "telegram_username" | "first_name" | "xray_uuid"
   >
 ): Promise<ProvisionedClient> {
-  const mobile = await provisionBotUserClient(mobileServer, user);
-  const email = buildClientLabelArg(
-    user.first_name,
-    user.telegram_username,
-    user.telegram_id
-  );
-  const home = await syncHomeProfile(config, mobile.uuid, email, "add");
-  return {
-    ...mobile,
-    vlessTcpConfigUrl: home.url ?? mobile.vlessTcpConfigUrl,
-    homeError: home.error,
-  };
+  try {
+    const mobile = await provisionBotUserClient(mobileServer, user);
+    const email = buildClientLabelArg(
+      user.first_name,
+      user.telegram_username,
+      user.telegram_id
+    );
+    const home = await syncHomeProfile(config, mobile.uuid, email, "add");
+    await logBotKeyEvent({
+      botUserId: user.id,
+      telegramId: user.telegram_id,
+      xrayUuid: mobile.uuid,
+      host: "both",
+      action: "provision",
+      ok: !home.error,
+      error: home.error ?? null,
+    });
+    return {
+      ...mobile,
+      vlessTcpConfigUrl: home.url ?? mobile.vlessTcpConfigUrl,
+      homeError: home.error,
+    };
+  } catch (error) {
+    await logBotKeyEvent({
+      botUserId: user.id,
+      telegramId: user.telegram_id,
+      xrayUuid: user.xray_uuid,
+      host: "both",
+      action: "provision",
+      ok: false,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
+  }
 }
 
 export async function revokeBotUserClient(

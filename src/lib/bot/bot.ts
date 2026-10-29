@@ -60,6 +60,7 @@ import {
 } from "@/lib/bot/db";
 import { buildClientLabelArg } from "@/lib/bot/build-vless-url";
 import { isHomeProfileEnabled } from "@/lib/bot/home-server";
+import { listBotKeyEvents, logBotKeyEvent } from "@/lib/bot/key-events";
 import {
   provisionBotUserDual,
   revokeBotUserEverywhere,
@@ -242,35 +243,58 @@ async function ensureProvisioned(
   if (user.vless_config_url && user.xray_uuid) {
     // Always re-add UUID on Origin and home: URL refresh alone left orphan
     // keys when a host config was rebuilt / client was never written.
-    await runXrayClientAction(server, "add", user.xray_uuid, email);
-    const home = await syncHomeProfile(config, user.xray_uuid, email, "add");
+    try {
+      await runXrayClientAction(server, "add", user.xray_uuid, email);
+      const home = await syncHomeProfile(config, user.xray_uuid, email, "add");
 
-    const patch: {
-      vless_config_url?: string;
-      vless_tcp_config_url?: string | null;
-    } = {};
+      const patch: {
+        vless_config_url?: string;
+        vless_tcp_config_url?: string | null;
+      } = {};
 
-    if (botCdnUrlNeedsRefresh(user.vless_config_url, server)) {
-      const urls = buildClientUrls(server, user.xray_uuid);
-      patch.vless_config_url = urls.vlessConfigUrl;
+      if (botCdnUrlNeedsRefresh(user.vless_config_url, server)) {
+        const urls = buildClientUrls(server, user.xray_uuid);
+        patch.vless_config_url = urls.vlessConfigUrl;
+      }
+
+      const homeTemplate =
+        home.template ||
+        process.env.TELEGRAM_BOT_HOME_VLESS_TEMPLATE?.trim() ||
+        null;
+      if (
+        home.url &&
+        (!user.vless_tcp_config_url ||
+          botHomeUrlNeedsRefresh(user.vless_tcp_config_url, homeTemplate))
+      ) {
+        patch.vless_tcp_config_url = home.url;
+      }
+
+      await logBotKeyEvent({
+        botUserId: user.id,
+        telegramId: user.telegram_id,
+        xrayUuid: user.xray_uuid,
+        host: "both",
+        action: "add",
+        ok: !home.error,
+        error: home.error ?? null,
+      });
+
+      if (Object.keys(patch).length > 0) {
+        return updateBotUser(user.id, patch);
+      }
+      return user;
+    } catch (error) {
+      await logBotKeyEvent({
+        botUserId: user.id,
+        telegramId: user.telegram_id,
+        xrayUuid: user.xray_uuid,
+        host: "both",
+        action: "add",
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
     }
-
-    const homeTemplate =
-      home.template ||
-      process.env.TELEGRAM_BOT_HOME_VLESS_TEMPLATE?.trim() ||
-      null;
-    if (
-      home.url &&
-      (!user.vless_tcp_config_url ||
-        botHomeUrlNeedsRefresh(user.vless_tcp_config_url, homeTemplate))
-    ) {
-      patch.vless_tcp_config_url = home.url;
-    }
-
-    if (Object.keys(patch).length > 0) {
-      return updateBotUser(user.id, patch);
-    }
-    return user;
   }
 
   const provisioned = await provisionBotUserDual(config, server, user);
@@ -388,6 +412,41 @@ export function createBot(config: BotConfig): Bot {
           lines.length ? lines.join("\n") : "Пока нет пользователей.",
         ].join("\n")
       );
+    } catch (error) {
+      await replyError(ctx, error);
+    }
+  });
+
+  bot.command("keylog", async (ctx) => {
+    try {
+      if (!requireAdmin(ctx, config)) {
+        await replyNotAdmin(ctx);
+        return;
+      }
+      const targetId = Number(ctx.match);
+      if (!Number.isFinite(targetId)) {
+        await ctx.reply("Использование: /keylog <telegram_id>");
+        return;
+      }
+      const events = await listBotKeyEvents(targetId, 15);
+      if (events.length === 0) {
+        await ctx.reply(`Нет событий ключей для ${targetId}.`);
+        return;
+      }
+      const lines = events.map((e) => {
+        const when = new Intl.DateTimeFormat("ru-RU", {
+          timeZone: "Europe/Moscow",
+          day: "2-digit",
+          month: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+        }).format(new Date(e.created_at));
+        const uuid = e.xray_uuid ? e.xray_uuid.slice(0, 8) : "—";
+        const mark = e.ok ? "✓" : "✗";
+        const err = e.error ? ` (${e.error.slice(0, 80)})` : "";
+        return `${when} ${mark} ${e.action}/${e.host} ${uuid}${err}`;
+      });
+      await ctx.reply([`🔑 keylog ${targetId}`, "", ...lines].join("\n"));
     } catch (error) {
       await replyError(ctx, error);
     }
