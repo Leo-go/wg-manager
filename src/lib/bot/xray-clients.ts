@@ -179,11 +179,11 @@ async function resolveHomeSpec(
   }
   if (!spec) return null;
 
-  // RU relay (5.129) is reachable from Vercel directly; jump was for 94.103:22 DPI.
-  const noJump =
-    process.env.TELEGRAM_BOT_HOME_SSH_NO_JUMP?.trim() === "1" ||
-    spec.target.ssh.host === "5.129.215.254";
-  if (noJump) return spec;
+  // Set TELEGRAM_BOT_HOME_SSH_NO_JUMP=1 when RU relay is reachable from Vercel
+  // without ProxyJump (CDN Origin). Do not hardcode relay IPs here.
+  if (process.env.TELEGRAM_BOT_HOME_SSH_NO_JUMP?.trim() === "1") {
+    return spec;
+  }
 
   try {
     const mobileServer = await getVpnServer(config.serverId);
@@ -203,7 +203,7 @@ export function homeInboundPort(): number {
 
 /**
  * True if stored home key does not match the current HOME template
- * (e.g. still 94.103:2053 TCP after switch to RU relay xHTTP :443).
+ * (host/port/type/pbk/sid/sni/path — e.g. legacy 94.103:2053 TCP vs RU xHTTP).
  */
 export function botHomeUrlNeedsRefresh(
   storedUrl: string | null | undefined,
@@ -212,9 +212,19 @@ export function botHomeUrlNeedsRefresh(
   if (!template?.trim()) return false;
   if (!storedUrl?.trim()) return true;
 
-  const hostOf = (u: string) => u.match(/^vless:\/\/[^@]+@([^:?/]+)/i)?.[1]?.toLowerCase();
-  const portOf = (u: string) => u.match(/^vless:\/\/[^@]+@[^:]+:(\d+)/i)?.[1];
-  const typeOf = (u: string) => u.match(/[?&]type=([^&]+)/i)?.[1]?.toLowerCase();
+  const hostOf = (u: string) =>
+    u.match(/^vless:\/\/[^@]+@([^:?/]+)/i)?.[1]?.toLowerCase();
+  const portOf = (u: string) =>
+    u.match(/^vless:\/\/[^@]+@[^:]+:(\d+)/i)?.[1];
+  const paramOf = (u: string, key: string) => {
+    const raw = u.match(new RegExp(`[?&]${key}=([^&]+)`, "i"))?.[1];
+    if (raw == null) return undefined;
+    try {
+      return decodeURIComponent(raw);
+    } catch {
+      return raw;
+    }
+  };
 
   const expHost = hostOf(template);
   const curHost = hostOf(storedUrl);
@@ -228,9 +238,11 @@ export function botHomeUrlNeedsRefresh(
   const curPort = portOf(storedUrl);
   if (expPort && curPort && expPort !== curPort) return true;
 
-  const expType = typeOf(template);
-  const curType = typeOf(storedUrl);
-  if (expType && curType && expType !== curType) return true;
+  for (const key of ["type", "pbk", "sid", "sni", "path"] as const) {
+    const exp = paramOf(template, key)?.toLowerCase();
+    const cur = paramOf(storedUrl, key)?.toLowerCase();
+    if (exp && cur && exp !== cur) return true;
+  }
 
   return false;
 }
@@ -332,10 +344,54 @@ export async function revokeBotUserEverywhere(
   }
   const home = await syncHomeProfile(config, uuid, email ?? "", "remove");
   if (home.error) errors.push(home.error);
-  if (errors.length === 2) {
+  if (errors.length > 0) {
     throw new Error(errors.join("; "));
   }
-  if (errors.length === 1) {
-    console.error("revoke partial:", errors[0]);
+}
+
+export type RestoreVpnResult = {
+  restored: boolean;
+  homeError?: string;
+  vlessConfigUrl?: string | null;
+  vlessTcpConfigUrl?: string | null;
+};
+
+/**
+ * Re-add an existing UUID to Origin + home after renewal.
+ * No-op when the user never had a key (first Connect still required).
+ */
+export async function restoreVpnAccess(
+  config: BotConfig,
+  user: Pick<
+    BotUser,
+    | "telegram_id"
+    | "telegram_username"
+    | "first_name"
+    | "xray_uuid"
+    | "vless_config_url"
+    | "vless_tcp_config_url"
+  >
+): Promise<RestoreVpnResult> {
+  const uuid = user.xray_uuid?.trim();
+  if (!uuid) {
+    return { restored: false };
   }
+
+  const mobileServer = await getVpnServer(config.serverId);
+  const email = buildClientLabelArg(
+    user.first_name,
+    user.telegram_username,
+    user.telegram_id
+  );
+
+  await runXrayClientAction(mobileServer, "add", uuid, email);
+  const urls = buildClientUrls(mobileServer, uuid);
+  const home = await syncHomeProfile(config, uuid, email, "add");
+
+  return {
+    restored: true,
+    homeError: home.error,
+    vlessConfigUrl: urls.vlessConfigUrl,
+    vlessTcpConfigUrl: home.url ?? user.vless_tcp_config_url ?? null,
+  };
 }

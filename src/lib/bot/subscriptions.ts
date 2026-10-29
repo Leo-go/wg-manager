@@ -72,6 +72,11 @@ export async function listExpiredUsersWithVpn(): Promise<BotUser[]> {
   return (data as BotUser[]) ?? [];
 }
 
+/**
+ * Remove client from VPN servers but keep xray_uuid + VLESS URLs so renewal
+ * can re-add the same key (client apps do not need re-import).
+ * On server failure: do not touch DB — cron will retry while is_active stays true.
+ */
 export async function revokeUserVpnAccess(
   config: BotConfig,
   user: BotUser
@@ -87,9 +92,7 @@ export async function revokeUserVpnAccess(
   }
 
   return updateBotUser(user.id, {
-    xray_uuid: null,
-    vless_config_url: null,
-    vless_tcp_config_url: null,
+    is_active: false,
   });
 }
 
@@ -150,7 +153,8 @@ export async function runSubscriptionMaintenance(
         [
           "⛔ Подписка VPN истекла — доступ отключён.",
           "",
-          "Чтобы снова подключиться, нажмите «Поддержать» и продлите подписку.",
+          "Продлите через «Поддержать». Если ключи уже были в приложении — после оплаты они снова заработают, ничего переустанавливать не нужно.",
+          "Ключей ещё не было — после оплаты нажмите «Подключиться».",
         ].join("\n")
       );
       result.revoked += 1;

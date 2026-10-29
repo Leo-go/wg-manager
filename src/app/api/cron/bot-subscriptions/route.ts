@@ -67,5 +67,24 @@ export async function GET(request: Request): Promise<Response> {
     console.error("capacity check failed:", error);
   }
 
+  if (result.errors.length > 0) {
+    const errorReport = [
+      "⚠️ Cron bot-subscriptions: ошибки",
+      `reminders=${result.remindersSent} revoked=${result.revoked} errors=${result.errors.length}`,
+      "",
+      ...result.errors.slice(0, 15),
+      result.errors.length > 15
+        ? `… и ещё ${result.errors.length - 15}`
+        : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
+    await Promise.all(
+      config.adminIds.map((id) =>
+        bot.api.sendMessage(Number(id), errorReport).catch(() => undefined)
+      )
+    );
+  }
+
   return Response.json({ ok: true, capacityWarning, ...result });
 }

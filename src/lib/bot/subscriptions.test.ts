@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { daysUntilExpiry, extendSubscriptionDays } from "@/lib/bot/config";
+import { accessAfterPaymentLines } from "@/lib/bot/payments";
 import { extendUserSubscription } from "@/lib/bot/subscriptions";
 import type { BotUser } from "@/lib/supabase/types";
 
@@ -44,5 +45,17 @@ describe("daysUntilExpiry", () => {
     const future = new Date();
     future.setUTCDate(future.getUTCDate() + 3);
     expect(daysUntilExpiry(future.toISOString())).toBe(3);
+  });
+});
+
+describe("accessAfterPaymentLines", () => {
+  it("tells returning users keys work without re-import", () => {
+    const lines = accessAfterPaymentLines(true);
+    expect(lines.join("\n")).toMatch(/снова активны/i);
+    expect(lines.join("\n")).not.toMatch(/^Нажмите «Подключиться»/);
+  });
+
+  it("asks first-time users to Connect", () => {
+    expect(accessAfterPaymentLines(false).join("\n")).toMatch(/Подключиться/);
   });
 });

@@ -7,7 +7,11 @@ export const maxDuration = 120;
 const handleUpdate = (() => {
   const bot = getBot();
   if (!bot) return null;
-  return webhookCallback(bot, "std/http");
+  // Default grammY timeout is 10s; Connect does 2–3 SSH hops (10–30s).
+  // Align with maxDuration so Telegram does not retry and duplicate provision.
+  return webhookCallback(bot, "std/http", {
+    timeoutMilliseconds: 110_000,
+  });
 })();
 
 export async function POST(request: Request): Promise<Response> {
@@ -15,7 +19,14 @@ export async function POST(request: Request): Promise<Response> {
     return new Response("Telegram bot is not configured", { status: 503 });
   }
 
+  const botToken = process.env.TELEGRAM_BOT_TOKEN?.trim();
   const secret = process.env.TELEGRAM_WEBHOOK_SECRET?.trim();
+  if (botToken && !secret) {
+    console.error(
+      "TELEGRAM_WEBHOOK_SECRET is required when TELEGRAM_BOT_TOKEN is set"
+    );
+    return new Response("Webhook secret not configured", { status: 503 });
+  }
   if (secret) {
     const header = request.headers.get("x-telegram-bot-api-secret-token");
     if (header !== secret) {

@@ -25,6 +25,14 @@
 .agent-final-summary.txt
 .test-result.txt
 
+# local ops / secrets (never commit)
+_askpass.sh
+_run_*.sh
+_remote_*.sh
+scripts/_tmp_*
+.home-reality-*
+vps-reality-*.txt
+
 # debug
 npm-debug.log*
 yarn-debug.log*

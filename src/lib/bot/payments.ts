@@ -3,10 +3,23 @@ import { currentMonthMoscow, type BotConfig } from "@/lib/bot/config";
 import {
   clearRenewalReminder,
   extendUserSubscription,
-} from "@/lib/bot/subscriptions";import { createServiceClient } from "@/lib/supabase/admin";
+} from "@/lib/bot/subscriptions";
+import { createServiceClient } from "@/lib/supabase/admin";
 import type { BotUser } from "@/lib/supabase/types";
 import { getBotUserByTelegramId, updateBotUser } from "@/lib/bot/db";
 import { mainMenuKeyboard } from "@/lib/bot/keyboards";
+import { restoreVpnAccess } from "@/lib/bot/xray-clients";
+
+/** User-facing lines after payment / grant depending on whether keys already exist. */
+export function accessAfterPaymentLines(hasExistingKey: boolean): string[] {
+  if (hasExistingKey) {
+    return [
+      "Ключи в приложении снова активны — ничего менять не нужно.",
+      "Если интернета нет: выключите VPN и включите снова. «Подключиться» — только если профиля ещё нет.",
+    ];
+  }
+  return ["Нажмите «Подключиться», чтобы получить ключи."];
+}
 
 export type StarsInvoicePayload = {
   botUserId: string;
@@ -40,7 +53,7 @@ export async function sendStarsInvoice(
   await bot.api.sendInvoice(
     chatId,
     "VPN — 30 дней",
-    "Подписка на общий VPN (Yandex CDN). Автопродление вручную раз в месяц.",
+    "Подписка на общий VPN. Автопродление вручную раз в месяц.",
     buildStarsInvoicePayload(user),
     "XTR",
     [{ label: "30 дней VPN", amount: config.starsAmount }],
@@ -105,11 +118,60 @@ export async function confirmStarsPayment(input: {
   return updated as BotUser;
 }
 
+/**
+ * Re-add existing UUID to Origin + home after subscription becomes active.
+ * No-op when the user has never been provisioned.
+ */
+export async function restoreSubscriptionAccess(
+  config: BotConfig,
+  user: BotUser
+): Promise<{ user: BotUser; restored: boolean; homeError?: string }> {
+  const result = await restoreVpnAccess(config, user);
+  if (!result.restored) {
+    return { user, restored: false };
+  }
+
+  const patch: {
+    vless_config_url?: string;
+    vless_tcp_config_url?: string | null;
+  } = {};
+  if (result.vlessConfigUrl) patch.vless_config_url = result.vlessConfigUrl;
+  if (result.vlessTcpConfigUrl !== undefined) {
+    patch.vless_tcp_config_url = result.vlessTcpConfigUrl;
+  }
+
+  const updated =
+    Object.keys(patch).length > 0
+      ? await updateBotUser(user.id, patch)
+      : user;
+
+  return {
+    user: updated,
+    restored: true,
+    homeError: result.homeError,
+  };
+}
+
+export async function confirmStarsPaymentWithRestore(
+  config: BotConfig,
+  input: {
+    botUserId: string;
+    telegramId: number;
+    starsAmount: number;
+    amountRub: number;
+    chargeId: string;
+  }
+): Promise<{ user: BotUser; restored: boolean; homeError?: string }> {
+  const user = await confirmStarsPayment(input);
+  return restoreSubscriptionAccess(config, user);
+}
+
 export async function notifyStarsPaymentSuccess(
   bot: Bot,
   config: BotConfig,
   telegramId: number,
-  subscribedUntil: string | null | undefined
+  subscribedUntil: string | null | undefined,
+  opts?: { restored?: boolean }
 ): Promise<void> {
   const until = subscribedUntil
     ? new Intl.DateTimeFormat("ru-RU", {
@@ -126,7 +188,7 @@ export async function notifyStarsPaymentSuccess(
       "✅ Оплата Stars прошла успешно!",
       `Подписка активна до ${until}.`,
       "",
-      "Нажмите «Подключиться» для получения ключа.",
+      ...accessAfterPaymentLines(Boolean(opts?.restored)),
     ].join("\n"),
     { reply_markup: mainMenuKeyboard(config.siteUrl) }
   );
@@ -142,4 +204,13 @@ export async function activateSubscriptionForUser(
     is_active: true,
     renewal_reminder_sent_at: null,
   });
+}
+
+export async function activateAndRestoreSubscription(
+  config: BotConfig,
+  user: BotUser,
+  days = 30
+): Promise<{ user: BotUser; restored: boolean; homeError?: string }> {
+  const activated = await activateSubscriptionForUser(user, days);
+  return restoreSubscriptionAccess(config, activated);
 }

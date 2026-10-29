@@ -36,9 +36,11 @@ import {
   mainMenuKeyboard,
 } from "@/lib/bot/keyboards";
 import {
-  confirmStarsPayment,
+  accessAfterPaymentLines,
+  confirmStarsPaymentWithRestore,
   notifyStarsPaymentSuccess,
   parseStarsInvoicePayload,
+  restoreSubscriptionAccess,
   sendStarsInvoice,
 } from "@/lib/bot/payments";
 import {
@@ -238,9 +240,10 @@ async function ensureProvisioned(
   );
 
   if (user.vless_config_url && user.xray_uuid) {
-    // Always re-add UUID on Origin: URL refresh alone left orphan keys when
-    // Origin config was rebuilt / client was never written (invalid CDN links).
+    // Always re-add UUID on Origin and home: URL refresh alone left orphan
+    // keys when a host config was rebuilt / client was never written.
     await runXrayClientAction(server, "add", user.xray_uuid, email);
+    const home = await syncHomeProfile(config, user.xray_uuid, email, "add");
 
     const patch: {
       vless_config_url?: string;
@@ -253,13 +256,15 @@ async function ensureProvisioned(
     }
 
     const homeTemplate =
-      process.env.TELEGRAM_BOT_HOME_VLESS_TEMPLATE?.trim() || null;
+      home.template ||
+      process.env.TELEGRAM_BOT_HOME_VLESS_TEMPLATE?.trim() ||
+      null;
     if (
-      !user.vless_tcp_config_url ||
-      botHomeUrlNeedsRefresh(user.vless_tcp_config_url, homeTemplate)
+      home.url &&
+      (!user.vless_tcp_config_url ||
+        botHomeUrlNeedsRefresh(user.vless_tcp_config_url, homeTemplate))
     ) {
-      const home = await syncHomeProfile(config, user.xray_uuid, email, "add");
-      if (home.url) patch.vless_tcp_config_url = home.url;
+      patch.vless_tcp_config_url = home.url;
     }
 
     if (Object.keys(patch).length > 0) {
@@ -414,13 +419,19 @@ export function createBot(config: BotConfig): Bot {
       }
 
       const user = await grantSubscription(targetId, 30);
+      const restored = await restoreSubscriptionAccess(config, user);
       await ctx.reply(
-        `✅ Доступ выдан ${targetId} до ${formatDate(user.subscribed_until)}`
+        `✅ Доступ выдан ${targetId} до ${formatDate(restored.user.subscribed_until)}${
+          restored.restored ? " (ключи на серверах восстановлены)" : ""
+        }`
       );
       await bot.api
         .sendMessage(
           targetId,
-          "✅ Вам выдан доступ! Нажмите «Подключиться» для получения ключа.",
+          [
+            "✅ Вам выдан доступ!",
+            ...accessAfterPaymentLines(restored.restored),
+          ].join("\n"),
           { reply_markup: mainMenuKeyboard(config.siteUrl) }
         )
         .catch(() => undefined);
@@ -510,12 +521,20 @@ export function createBot(config: BotConfig): Bot {
         return;
       }
 
+      const restored = await restoreSubscriptionAccess(config, result.user);
       await ctx.reply(
-        `✅ Подтверждено для ${targetId}. Подписка до ${formatDate(result.user.subscribed_until)}`
+        `✅ Подтверждено для ${targetId}. Подписка до ${formatDate(restored.user.subscribed_until)}${
+          restored.restored ? " (ключи восстановлены)" : ""
+        }`
       );
       await bot.api.sendMessage(
         targetId,
-        "✅ Оплата подтверждена! Нажмите «Подключиться» для получения ключа.",
+        [
+          "✅ Оплата подтверждена!",
+          `Подписка до ${formatDate(restored.user.subscribed_until)}.`,
+          "",
+          ...accessAfterPaymentLines(restored.restored),
+        ].join("\n"),
         { reply_markup: mainMenuKeyboard(config.siteUrl) }
       );
     } catch (error) {
@@ -551,12 +570,10 @@ export function createBot(config: BotConfig): Bot {
         await revokeBotUserEverywhere(config, server, user.xray_uuid, email);
       }
 
+      // Keep xray_uuid + URLs so a later /grant can restore the same client profile.
       await updateBotUser(user.id, {
         is_active: false,
         subscribed_until: null,
-        vless_config_url: null,
-        vless_tcp_config_url: null,
-        xray_uuid: null,
       });
 
       await ctx.reply(`⛔ Доступ отозван для ${targetId}`);
@@ -779,13 +796,21 @@ export function createBot(config: BotConfig): Bot {
         }
         const donationId = data.slice("admin:approve:".length);
         const result = await confirmDonation(donationId, ctx.from!.id);
+        const restored = await restoreSubscriptionAccess(config, result.user);
         await safeEditOrReply(
           ctx,
-          `✅ Подтверждено: ${result.user.telegram_id}, до ${formatDate(result.user.subscribed_until)}`
+          `✅ Подтверждено: ${result.user.telegram_id}, до ${formatDate(restored.user.subscribed_until)}${
+            restored.restored ? " (ключи восстановлены)" : ""
+          }`
         );
         await bot.api.sendMessage(
           result.user.telegram_id,
-          "✅ Оплата подтверждена! Нажмите «Подключиться».",
+          [
+            "✅ Оплата подтверждена!",
+            `Подписка до ${formatDate(restored.user.subscribed_until)}.`,
+            "",
+            ...accessAfterPaymentLines(restored.restored),
+          ].join("\n"),
           { reply_markup: mainMenuKeyboard(config.siteUrl) }
         );
         return;
@@ -829,7 +854,7 @@ export function createBot(config: BotConfig): Bot {
         throw new Error("Payment user mismatch");
       }
 
-      const user = await confirmStarsPayment({
+      const { user, restored } = await confirmStarsPaymentWithRestore(config, {
         botUserId: payload.botUserId,
         telegramId: from.id,
         starsAmount: payment.total_amount,
@@ -841,7 +866,8 @@ export function createBot(config: BotConfig): Bot {
         bot,
         config,
         from.id,
-        user.subscribed_until
+        user.subscribed_until,
+        { restored }
       );
     } catch (error) {
       await replyError(ctx, error);
