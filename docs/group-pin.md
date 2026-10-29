@@ -14,9 +14,10 @@
 Почему два ключа: у Ростелекома, Билайна, МТС, Tele2 списки разные. У кого-то жив дом и мёртв мобильный, у кого-то наоборот.
 
 Клиенты
-• Android — v2rayNG (APK из бота)
-• iPhone — INCY (российский App Store)
-• Windows / Mac — Happ
+• Android — **INCY** (Google Play)
+• iPhone — **INCY** (российский App Store)
+• Windows / Mac — **INCY** или **Happ**
+• Запасные: v2rayNG (Android APK), v2rayN (Windows)
 • Hiddify можно **только** для ключа «Дом». Мобильный CDN в Hiddify не работает.
 
 Как подключить: бот → Подключиться → скопировать ключ → импорт из буфера → Connect.

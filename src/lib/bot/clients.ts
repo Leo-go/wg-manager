@@ -6,15 +6,31 @@ export const V2RAYNG_RELEASES_URL =
 export const V2RAYN_RELEASES_URL =
   "https://github.com/2dust/v2rayN/releases/latest";
 
-/** INCY — primary iOS client for RU App Store (works with our CDN key). */
+/** INCY — primary client (Play / App Store / desktop). */
 export const INCY_IOS_APPSTORE_URL =
   "https://apps.apple.com/ru/app/incy/id6756943388";
 
-/** Happ — optional if you have a non-RU Apple ID / TestFlight. */
+export const INCY_ANDROID_PLAY_URL =
+  "https://play.google.com/store/apps/details?id=llc.itdev.incy";
+
+/** Official sideload if Play is unavailable. */
+export const INCY_ANDROID_APK_URL =
+  "https://github.com/INCY-DEV/incy-platforms/releases/download/latest/Incy.apk";
+
+export const INCY_DESKTOP_WINDOWS_URL =
+  "https://github.com/INCY-DEV/incy-platforms/releases/download/latest/incy-windows-setup.exe";
+
+export const INCY_DESKTOP_RELEASES_URL =
+  "https://github.com/INCY-DEV/incy-platforms/releases/latest";
+
+/** Happ — iOS optional (non-RU Apple ID); desktop is a solid PC option. */
 export const HAPP_IOS_APPSTORE_URL =
   "https://apps.apple.com/app/happ-proxy-utility/id6504287215";
 
 export const HAPP_SITE_URL = "https://www.happ.su/main";
+
+export const HAPP_DESKTOP_RELEASES_URL =
+  "https://github.com/Happ-proxy/happ-desktop/releases/latest";
 
 export function iosGuideText(): string {
   return [
@@ -28,6 +44,35 @@ export function iosGuideText(): string {
     "Запасной вариант: Happ (часто недоступен в РФ App Store) — нужен зарубежный Apple ID или TestFlight с happ.su.",
     "",
     "Hiddify можно только для ключа «Дом» (Reality). Ключ «Мобильный» (CDN) — INCY / Happ, не Hiddify.",
+  ].join("\n");
+}
+
+export function androidGuideText(): string {
+  return [
+    "📱 Android",
+    "",
+    "Основной клиент — INCY (есть в Google Play):",
+    "1. Установите INCY по кнопке ниже (издатель LLC ITDEV).",
+    "2. В боте: «Подключиться» → скопируйте ключ «Дом», если не встаёт — «Мобильный».",
+    "3. В INCY: вставить из буфера → разрешить VPN → Connect.",
+    "",
+    "Нет Google Play — APK с официального GitHub (кнопка ниже) или запасной v2rayNG.",
+    "",
+    "Hiddify можно только для ключа «Дом». Мобильный CDN — INCY / Happ / v2rayNG.",
+  ].join("\n");
+}
+
+export function desktopGuideText(): string {
+  return [
+    "💻 Windows / Mac / Linux",
+    "",
+    "Рекомендуем INCY или Happ (оба умеют наш дом и мобильный ключ):",
+    "1. Скачайте установщик по кнопке ниже.",
+    "2. В боте: «Подключиться» → скопируйте ключ.",
+    "3. Импорт из буфера → Connect. Wi‑Fi → 🏠 дом, сотовая → 📱 мобильный.",
+    "",
+    "INCY desktop ещё pre-alpha — если глючит, возьмите Happ.",
+    "Запасной: v2rayN (Windows).",
   ].join("\n");
 }
 

@@ -18,18 +18,23 @@ import {
 } from "@/lib/bot/provision-target";
 import { getBotSshAuthMode } from "@/lib/bot/ssh-auth";
 import {
+  androidGuideText,
+  desktopGuideText,
   downloadV2rayNgApk,
   getCachedV2rayNgFileId,
+  HAPP_DESKTOP_RELEASES_URL,
+  INCY_ANDROID_PLAY_URL,
+  INCY_DESKTOP_WINDOWS_URL,
   INCY_IOS_APPSTORE_URL,
   iosGuideText,
   setCachedV2rayNgFileId,
-  V2RAYN_RELEASES_URL,
-  V2RAYNG_RELEASES_URL,
 } from "@/lib/bot/clients";
 import {
   adminApproveKeyboard,
   afterConnectKeyboard,
+  androidClientsKeyboard,
   clientsKeyboard,
+  desktopClientsKeyboard,
   donateKeyboard,
   helpKeyboard,
   iosClientsKeyboard,
@@ -535,7 +540,7 @@ export function createBot(config: BotConfig): Bot {
           `✅ Trial на 3 дня: ${targetId}`,
           `Подписка до: ${formatDate(updated.subscribed_until)}`,
           "",
-          "Перешлите APK (v2rayNG) + оба ключа: 🏠 дом и 📱 мобильный.",
+          "Перешлите ссылку на INCY (Play) + оба ключа: 🏠 дом и 📱 мобильный.",
           provisioned.homeError
             ? `⚠️ Домашний ключ (RU relay) не записался: ${provisioned.homeError}`
             : "",
@@ -814,11 +819,12 @@ export function createBot(config: BotConfig): Bot {
           [
             "📲 Клиенты для нашего ключа",
             "",
-            "Android — v2rayNG (кнопка APK ниже)",
+            "Android — INCY (Google Play)",
             "iOS — INCY (российский App Store)",
-            "Windows — v2rayN",
+            "ПК — INCY или Happ",
             "",
-            "⚠️ Hiddify не использовать.",
+            "Запасные: v2rayNG (Android APK), v2rayN (Windows).",
+            "⚠️ Hiddify — только для ключа «Дом», не для мобильного CDN.",
           ].join("\n"),
           {
             reply_markup: clientsKeyboard(),
@@ -828,11 +834,19 @@ export function createBot(config: BotConfig): Bot {
         return;
       }
       if (data === "action:download_android") {
-        await handleDownloadAndroid(ctx, bot);
+        await handleDownloadAndroid(ctx);
+        return;
+      }
+      if (data === "action:download_android_apk") {
+        await handleDownloadAndroidApk(ctx, bot);
         return;
       }
       if (data === "action:download_ios") {
         await handleDownloadIos(ctx);
+        return;
+      }
+      if (data === "action:download_desktop") {
+        await handleDownloadDesktop(ctx);
         return;
       }
       if (data === "action:copy_key") {
@@ -945,16 +959,21 @@ function helpText(config: BotConfig): string {
     "❓ Помощь",
     "",
     "1. Скачайте клиент (кнопка «📲 Клиенты»):",
-    "   • Android — v2rayNG (APK из бота или GitHub)",
+    "   • Android — INCY (Google Play)",
     "   • iPhone — INCY (российский App Store)",
-    "   • Windows — v2rayN · Mac — Happ desktop",
+    "   • ПК — INCY или Happ",
     "2. «Поддержать» → Stars ⭐ или СБП.",
     "3. «Подключиться» — два ключа: 🏠 дом и 📱 мобильный.",
     "4. Wi‑Fi → дом. Сотовая → мобильный. На Wi‑Fi мобильный не держите (CDN платный).",
     "5. Импорт из буфера → Connect. Если нет интернета — ВЫКЛЮЧИТЕ VPN.",
     "",
-    "🏠 Дом (Reality): v2rayNG / INCY / Happ / Hiddify.",
-    "📱 Мобильный (CDN xHTTP): только v2rayNG / INCY / Happ / v2rayN. Не Hiddify.",
+    "🏠 Дом (Reality): INCY / Happ / v2rayNG / Hiddify.",
+    "📱 Мобильный (CDN xHTTP): INCY / Happ / v2rayNG / v2rayN. Не Hiddify.",
+    "",
+    "📱 Android (INCY):",
+    "   • Ставится из Google Play",
+    `   • ${INCY_ANDROID_PLAY_URL}`,
+    "   • Нет Play — официальный APK или запасной v2rayNG",
     "",
     "🍎 iPhone (INCY):",
     "   • Ставится из РФ App Store без смены региона",
@@ -962,12 +981,13 @@ function helpText(config: BotConfig): string {
     `   • ${INCY_IOS_APPSTORE_URL}`,
     "   • Запасной: Happ (часто удалён из РФ) — зарубежный Apple ID / TestFlight",
     "",
+    "💻 ПК:",
+    `   • INCY: ${INCY_DESKTOP_WINDOWS_URL}`,
+    `   • Happ: ${HAPP_DESKTOP_RELEASES_URL}`,
+    "",
     "⚠️ Мобильный CDN: не Hiddify. Дом — Hiddify можно.",
     "",
     `Stars: ${config.starsAmount} ⭐ / мес · СБП: ${formatRub(config.suggestedDonationRub)}`,
-    "",
-    `Android: ${V2RAYNG_RELEASES_URL}`,
-    `Windows: ${V2RAYN_RELEASES_URL}`,
     "",
     "Команды: /connect /donate /status /whoami /help",
   ].join("\n");
@@ -1071,8 +1091,8 @@ async function handleConnect(ctx: Context, config: BotConfig, bot: Bot) {
       "На Wi‑Fi не оставляйте мобильный ключ: CDN платный.",
       "Нет интернета после включения — выключите VPN в клиенте.",
       "",
-      "Дом: v2rayNG / INCY / Happ / Hiddify.",
-      "Мобильный: v2rayNG / INCY / Happ / v2rayN. Не Hiddify.",
+      "Дом: INCY / Happ / v2rayNG / Hiddify.",
+      "Мобильный: INCY / Happ / v2rayNG. Не Hiddify.",
       `Подписка до: ${formatDate(updated.subscribed_until)}`,
     ].join("\n"),
     { reply_markup: afterConnectKeyboard(homeUrl || mobileUrl || null) }
@@ -1138,15 +1158,30 @@ async function handleDownloadIos(ctx: Context) {
   });
 }
 
-async function handleDownloadAndroid(ctx: Context, bot: Bot) {
+async function handleDownloadAndroid(ctx: Context) {
+  await ctx.reply(androidGuideText(), {
+    reply_markup: androidClientsKeyboard(),
+    link_preview_options: { is_disabled: true },
+  });
+}
+
+async function handleDownloadDesktop(ctx: Context) {
+  await ctx.reply(desktopGuideText(), {
+    reply_markup: desktopClientsKeyboard(),
+    link_preview_options: { is_disabled: true },
+  });
+}
+
+async function handleDownloadAndroidApk(ctx: Context, bot: Bot) {
   const chatId = ctx.chat?.id;
   if (!chatId) return;
 
-  await ctx.reply("⏳ Прикрепляю свежий APK v2rayNG…");
+  await ctx.reply("⏳ Прикрепляю запасной APK v2rayNG…");
 
   const caption = [
-    "📱 v2rayNG (Android)",
+    "📱 v2rayNG (запасной Android)",
     "",
+    "Основной клиент — INCY из Google Play.",
     "1. Установите APK (разрешите установку из неизвестных источников).",
     "2. В боте нажмите «Подключиться» и скопируйте ключ.",
     "3. В v2rayNG: «+» → Import config from clipboard.",
@@ -1162,8 +1197,9 @@ async function handleDownloadAndroid(ctx: Context, bot: Bot) {
     const apk = await downloadV2rayNgApk();
     const sent = await bot.api.sendDocument(chatId, apk.file, {
       caption: [
-        `📱 v2rayNG ${apk.tag} (Android)`,
+        `📱 v2rayNG ${apk.tag} (запасной Android)`,
         "",
+        "Основной клиент — INCY из Google Play.",
         "1. Установите APK (разрешите установку из неизвестных источников).",
         "2. В боте нажмите «Подключиться» и скопируйте ключ.",
         "3. В v2rayNG: «+» → Import config from clipboard.",
@@ -1182,9 +1218,9 @@ async function handleDownloadAndroid(ctx: Context, bot: Bot) {
     await ctx.reply(
       [
         "Не удалось прикрепить APK прямо в чат (часто из‑за GitHub/размера).",
-        "Скачайте официальный релиз — файл *arm64-v8a.apk*:",
+        "Лучше поставьте INCY из Google Play. Запасной v2rayNG — arm64-v8a.apk с GitHub:",
       ].join("\n"),
-      { reply_markup: clientsKeyboard() }
+      { reply_markup: androidClientsKeyboard() }
     );
   }
 }

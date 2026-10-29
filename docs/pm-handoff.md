@@ -40,8 +40,8 @@ Cursor не режет историю пополам. Рабочая схема:
 Не трогай SaaS-сайт, Timeweb-установку на чужой VPS и дашборд, кроме того что нужно боту (servers.id, SSH, health).
 
 Продукт — два профиля в одном боте:
-1) Дом — VLESS Reality TCP на 94.103.15.20:2053 (SNI www.apple.com). Клиенты: v2rayNG / INCY / Happ / Hiddify. URL в bot_users.vless_tcp_config_url.
-2) Мобильный — Yandex CDN xHTTP, домен www.wg-manager.online → Origin 185.247.185.3 → Exit 216.57.107.94. Клиенты: v2rayNG / INCY / Happ / v2rayN, не Hiddify. URL в bot_users.vless_config_url.
+1) Дом — VLESS Reality TCP на 94.103.15.20:2053 (SNI www.apple.com). Клиенты: INCY / Happ / v2rayNG / Hiddify. URL в bot_users.vless_tcp_config_url.
+2) Мобильный — Yandex CDN xHTTP, домен www.wg-manager.online → Origin 185.247.185.3 → Exit 216.57.107.94. Клиенты: INCY / Happ / v2rayNG / v2rayN, не Hiddify. URL в bot_users.vless_config_url.
 
 Правило людям: сначала дом, если не встаёт — мобильный. Не один универсальный ключ.
 
@@ -62,12 +62,12 @@ Cursor не режет историю пополам. Рабочая схема:
 
 ## Mac через 2 дня (складчина, не SaaS)
 
-На Mac **не** v2rayNG. Практичный набор: **Happ desktop** (предпочтительно) или v2rayN. Импорт того же `vless://`.
+На Mac **не** v2rayNG. Практичный набор: **INCY** или **Happ desktop** (оба ок), запасной v2rayN. Импорт того же `vless://`.
 
 Чеклист до выхода на работу:
 
 1. Тот же аккаунт Cursor, клон `Leo-go/wg-manager` в `~/vpn-saas-mvp-wsl`.
-2. Поставить Happ desktop.
+2. Поставить INCY или Happ desktop.
 3. В боте «Подключиться» — импортировать **оба** профиля (🏠 дом и 📱 мобильный).
 4. Проверка с домашней Wi‑Fi: сначала дом (Reality).
 5. Проверка с телефона как hotspot: если дом не встаёт — мобильный CDN.

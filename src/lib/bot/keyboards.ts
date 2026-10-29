@@ -1,7 +1,11 @@
 import { InlineKeyboard } from "grammy";
 import {
+  HAPP_DESKTOP_RELEASES_URL,
   HAPP_IOS_APPSTORE_URL,
   HAPP_SITE_URL,
+  INCY_ANDROID_APK_URL,
+  INCY_ANDROID_PLAY_URL,
+  INCY_DESKTOP_WINDOWS_URL,
   INCY_IOS_APPSTORE_URL,
   V2RAYN_RELEASES_URL,
   V2RAYNG_RELEASES_URL,
@@ -30,12 +34,21 @@ export function mainMenuKeyboard(siteUrl: string): InlineKeyboard {
 /** All download links in one place. */
 export function clientsKeyboard(): InlineKeyboard {
   return new InlineKeyboard()
-    .text("📱 APK Android (v2rayNG)", "action:download_android")
+    .url("📱 INCY Android (Play)", INCY_ANDROID_PLAY_URL)
+    .text("📱 Гайд Android", "action:download_android")
     .row()
     .url("🍎 INCY iOS (РФ)", INCY_IOS_APPSTORE_URL)
     .text("🍎 Гайд iOS", "action:download_ios")
     .row()
-    .url("💻 v2rayN Windows", V2RAYN_RELEASES_URL)
+    .url("💻 INCY Windows", INCY_DESKTOP_WINDOWS_URL)
+    .url("💻 Happ ПК", HAPP_DESKTOP_RELEASES_URL)
+    .row()
+    .text("💻 Гайд ПК", "action:download_desktop")
+    .row()
+    .url("📱 INCY APK (без Play)", INCY_ANDROID_APK_URL)
+    .text("📱 v2rayNG APK", "action:download_android_apk")
+    .row()
+    .url("💻 v2rayN (запасной)", V2RAYN_RELEASES_URL)
     .url("📱 v2rayNG GitHub", V2RAYNG_RELEASES_URL)
     .row()
     .text("« Назад", "action:help");
@@ -68,10 +81,38 @@ export function iosClientsKeyboard(): InlineKeyboard {
     .text("📲 Все клиенты", "action:clients");
 }
 
+export function androidClientsKeyboard(): InlineKeyboard {
+  return new InlineKeyboard()
+    .url("📱 INCY — Google Play", INCY_ANDROID_PLAY_URL)
+    .row()
+    .url("📱 INCY APK (без Play)", INCY_ANDROID_APK_URL)
+    .row()
+    .text("📱 v2rayNG APK (запасной)", "action:download_android_apk")
+    .row()
+    .text("🔌 Подключиться", "action:connect")
+    .text("📲 Все клиенты", "action:clients");
+}
+
+export function desktopClientsKeyboard(): InlineKeyboard {
+  return new InlineKeyboard()
+    .url("💻 INCY Windows", INCY_DESKTOP_WINDOWS_URL)
+    .row()
+    .url("💻 Happ (Windows / Mac / Linux)", HAPP_DESKTOP_RELEASES_URL)
+    .row()
+    .url("🌐 happ.su", HAPP_SITE_URL)
+    .url("💻 v2rayN (запасной)", V2RAYN_RELEASES_URL)
+    .row()
+    .text("🔌 Подключиться", "action:connect")
+    .text("📲 Все клиенты", "action:clients");
+}
+
 export function helpKeyboard(): InlineKeyboard {
   return new InlineKeyboard()
     .text("📲 Клиенты", "action:clients")
+    .text("📱 Android", "action:download_android")
+    .row()
     .text("🍎 iOS", "action:download_ios")
+    .text("💻 ПК", "action:download_desktop")
     .row()
     .text("🔌 Подключиться", "action:connect")
     .text("💰 Поддержать", "action:donate");
