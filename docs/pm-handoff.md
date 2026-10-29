@@ -89,7 +89,7 @@ Cursor не режет историю пополам. Рабочая схема:
 
 ## Next (складчина, по порядку)
 
-1. **Health cron** — `/api/cron/bot-health` (каждые 30 мин): TCP `5.129.215.254:443` + GET `https://www.wg-manager.online/cdn-check` + WG handshake на RU → DM админам при hard-fail. (Сделано в коде; следить за алертами.)
+1. **Health cron** — `/api/cron/bot-health` (ежедневно 08:00 UTC; Hobby не даёт чаще раза в сутки): TCP `5.129.215.254:443` + GET `https://www.wg-manager.online/cdn-check` + WG handshake на RU → DM админам при hard-fail. (Сделано в коде; следить за алертами.)
 2. **Hot-add** — `xray-client-manager.sh` через API `:10085` без рестарта; на RU один раз `patch-ru-xray-api.sh` если API ещё нет.
 3. **WG runbook** — `setup-wg-home0.sh` + `patch-ru-exit-proxy-wg.sh`; см. `docs/home-wg-cutover.md`. Не гонять `FORCE_REINSTALL` без бэкапа.
 4. **Traffic metering** — Origin xray Stats по UUID → Supabase + `/traffic` админу (потом soft cut CDN).
