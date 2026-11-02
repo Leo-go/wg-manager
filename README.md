@@ -302,6 +302,7 @@ Friends-and-family VPN bot with manual donations, per-user VLESS keys, and a fun
 | `/revoke <telegram_id>` | Remove Xray client and disable access |
 | `/setgoal <rub>` | Set monthly fundraising target |
 | `/capacity` | Soft capacity / active subscribers |
+| `/refreshhomes [dry-run]` | Re-sync home Reality URLs for active subscribers |
 
 Phase 2 (cron daily 09:00 UTC): renewal reminders + auto-revoke expired VPN keys.
 
@@ -311,7 +312,7 @@ Phase 3 — funnel: bot button «Создать свой VPN» opens `/login?ref
 
 Phase 4 — capacity: admin `/capacity` (and summary in `/users`) shows active subscribers vs soft limit (`TELEGRAM_BOT_SOFT_LIMIT`, default 40). Health JSON includes `capacity`. New keys are paused at the soft limit until you raise the limit or add another Origin/exit.
 
-Two profiles after «Подключиться»: **home** Reality (`TELEGRAM_BOT_HOME_*`, host like 94.103.15.20:2053) stored in `bot_users.vless_tcp_config_url`, and **mobile** Yandex CDN xHTTP in `vless_config_url`. Cron `/revoke` removes the UUID on both hosts. Handoff: `docs/pm-handoff.md`. Group pin: `docs/group-pin.md`. ISP check: `bash scripts/diag-cdn-from-isp.sh`.
+Two profiles after «Подключиться»: **HOME** RU relay Reality xHTTP (`TELEGRAM_BOT_HOME_*`, e.g. `5.129.215.254:443` → WG → exit) in `bot_users.vless_tcp_config_url`, and **MOBILE** Yandex CDN xHTTP in `vless_config_url`. Bot also issues a Happ/INCY **subscription** URL (`/api/telegram/sub/[token]`, signed with `TELEGRAM_WEBHOOK_SECRET`). Cron `/revoke` removes the UUID on both hosts. Home cutover: `docs/home-wg-cutover.md`. Baseline: `docs/home-baseline-report.md`. Direct-abroad spike: `docs/direct-abroad-spike.md`. Group pin: `docs/group-pin.md`. Handoff: `docs/pm-handoff.md`.
 
 Optional: after the bot successfully sends v2rayNG once, copy `file_id` from Vercel logs into `TELEGRAM_V2RAYNG_FILE_ID` so later downloads skip re-uploading the APK.
 

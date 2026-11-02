@@ -60,6 +60,32 @@ export async function getBotUserByTelegramId(
   return (data as BotUser | null) ?? null;
 }
 
+export async function getBotUserById(id: string): Promise<BotUser | null> {
+  const supabase = createServiceClient();
+  const { data, error } = await supabase
+    .from("bot_users")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  return (data as BotUser | null) ?? null;
+}
+
+/** Active paid subscribers (for home refresh batch / broadcast filters). */
+export async function listActiveSubscribedBotUsers(): Promise<BotUser[]> {
+  const supabase = createServiceClient();
+  const { data, error } = await supabase
+    .from("bot_users")
+    .select("*")
+    .eq("is_active", true)
+    .gt("subscribed_until", new Date().toISOString())
+    .order("created_at", { ascending: true });
+
+  if (error) throw new Error(error.message);
+  return (data as BotUser[]) ?? [];
+}
+
 export async function updateBotUser(
   id: string,
   patch: Partial<

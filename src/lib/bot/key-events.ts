@@ -5,7 +5,8 @@ export type BotKeyEventAction =
   | "remove"
   | "restore"
   | "revoke"
-  | "provision";
+  | "provision"
+  | "refresh";
 
 export type BotKeyEventHost = "origin" | "home" | "both";
 

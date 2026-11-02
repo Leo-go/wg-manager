@@ -54,14 +54,28 @@ export function clientsKeyboard(): InlineKeyboard {
     .text("« Назад", "action:help");
 }
 
-/** After key issue — only what you need next. */
-export function afterConnectKeyboard(vlessUrl?: string | null): InlineKeyboard {
+/** After key issue — subscription first, then copy / refresh home. */
+export function afterConnectKeyboard(opts?: {
+  vlessUrl?: string | null;
+  subscriptionUrl?: string | null;
+  homeEnabled?: boolean;
+}): InlineKeyboard {
   const kb = new InlineKeyboard();
+  const vlessUrl = opts?.vlessUrl;
+  const subscriptionUrl = opts?.subscriptionUrl;
+
+  if (subscriptionUrl) {
+    kb.url("📲 Subscription (Happ / INCY)", subscriptionUrl).row();
+  }
 
   if (vlessUrl && canUseCopyTextButton(vlessUrl)) {
     kb.copyText("📋 Скопировать ключ", vlessUrl).row();
   } else if (vlessUrl) {
     kb.text("📋 Скопировать ключ", "action:copy_key").row();
+  }
+
+  if (opts?.homeEnabled) {
+    kb.text("🏠 Обновить дом", "action:refresh_home").row();
   }
 
   return kb

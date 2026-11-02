@@ -9,7 +9,7 @@ import {
   buildClientLabelArg,
   swapVlessUuid,
 } from "@/lib/bot/build-vless-url";
-import { getVpnServer } from "@/lib/bot/db";
+import { getVpnServer, updateBotUser } from "@/lib/bot/db";
 import {
   attachHomeJump,
   buildHomeVlessUrl,
@@ -417,4 +417,159 @@ export async function restoreVpnAccess(
     vlessConfigUrl: urls.vlessConfigUrl,
     vlessTcpConfigUrl: home.url ?? user.vless_tcp_config_url ?? null,
   };
+}
+
+export type HomeRefreshResult = {
+  url: string | null;
+  error?: string;
+  updated: boolean;
+  needsRefresh: boolean;
+};
+
+/** Re-add UUID on home and rewrite vless_tcp_config_url from live template. */
+export async function refreshHomeForUser(
+  config: BotConfig,
+  user: BotUser
+): Promise<{ user: BotUser; result: HomeRefreshResult }> {
+  const uuid = user.xray_uuid?.trim();
+  if (!uuid) {
+    return {
+      user,
+      result: {
+        url: null,
+        error: "no xray_uuid — run Connect first",
+        updated: false,
+        needsRefresh: true,
+      },
+    };
+  }
+
+  const email = buildClientLabelArg(
+    user.first_name,
+    user.telegram_username,
+    user.telegram_id
+  );
+  const home = await syncHomeProfile(config, uuid, email, "add");
+  const template =
+    home.template || process.env.TELEGRAM_BOT_HOME_VLESS_TEMPLATE?.trim() || null;
+  const needsRefresh =
+    !user.vless_tcp_config_url ||
+    botHomeUrlNeedsRefresh(user.vless_tcp_config_url, template);
+
+  await logBotKeyEvent({
+    botUserId: user.id,
+    telegramId: user.telegram_id,
+    xrayUuid: uuid,
+    host: "home",
+    action: "refresh",
+    ok: !home.error && Boolean(home.url),
+    error: home.error ?? null,
+  });
+
+  if (home.error || !home.url) {
+    return {
+      user,
+      result: {
+        url: user.vless_tcp_config_url ?? null,
+        error: home.error || "home URL not returned",
+        updated: false,
+        needsRefresh,
+      },
+    };
+  }
+
+  if (!needsRefresh && user.vless_tcp_config_url === home.url) {
+    return {
+      user,
+      result: {
+        url: home.url,
+        updated: false,
+        needsRefresh: false,
+      },
+    };
+  }
+
+  const updated = await updateBotUser(user.id, {
+    vless_tcp_config_url: home.url,
+  });
+  return {
+    user: updated,
+    result: {
+      url: home.url,
+      updated: true,
+      needsRefresh: false,
+    },
+  };
+}
+
+export type RefreshHomesBatchResult = {
+  total: number;
+  updated: number;
+  failed: number;
+  skipped: number;
+  dryRun: boolean;
+  errors: string[];
+};
+
+/**
+ * Batch refresh home URLs for active subscribers.
+ * dryRun counts who would change without SSH writes.
+ */
+export async function refreshHomesForActiveUsers(
+  config: BotConfig,
+  opts?: { dryRun?: boolean; limit?: number }
+): Promise<RefreshHomesBatchResult> {
+  const { listActiveSubscribedBotUsers } = await import("@/lib/bot/db");
+  const dryRun = Boolean(opts?.dryRun);
+  const limit = Math.min(Math.max(opts?.limit ?? 200, 1), 500);
+  const users = (await listActiveSubscribedBotUsers()).slice(0, limit);
+  const template = process.env.TELEGRAM_BOT_HOME_VLESS_TEMPLATE?.trim() || null;
+
+  const result: RefreshHomesBatchResult = {
+    total: users.length,
+    updated: 0,
+    failed: 0,
+    skipped: 0,
+    dryRun,
+    errors: [],
+  };
+
+  for (const user of users) {
+    if (!user.xray_uuid?.trim()) {
+      result.skipped += 1;
+      continue;
+    }
+    const needs =
+      !user.vless_tcp_config_url ||
+      botHomeUrlNeedsRefresh(user.vless_tcp_config_url, template);
+
+    if (dryRun) {
+      if (needs) result.updated += 1;
+      else result.skipped += 1;
+      continue;
+    }
+
+    try {
+      const { result: home } = await refreshHomeForUser(config, user);
+      if (home.error) {
+        result.failed += 1;
+        result.errors.push(
+          `${user.telegram_id}: ${home.error}`.slice(0, 200)
+        );
+      } else if (home.updated || needs) {
+        result.updated += 1;
+      } else {
+        result.skipped += 1;
+      }
+    } catch (error) {
+      result.failed += 1;
+      result.errors.push(
+        `${user.telegram_id}: ${
+          error instanceof Error ? error.message : String(error)
+        }`.slice(0, 200)
+      );
+    }
+  }
+
+  return result;
 }
