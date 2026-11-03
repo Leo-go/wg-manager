@@ -15,11 +15,11 @@ import { restoreVpnAccess } from "@/lib/bot/xray-clients";
 export function accessAfterPaymentLines(hasExistingKey: boolean): string[] {
   if (hasExistingKey) {
     return [
-      "Ключи в приложении снова активны — ничего менять не нужно.",
-      "Если интернета нет: выключите VPN и включите снова. «Подключиться» — только если профиля ещё нет.",
+      "Доступ снова активен — в INCY можно просто обновить подписку (pull).",
+      "Если интернета нет: выключите VPN и включите снова. «Подключиться» — если ссылки подписки ещё нет.",
     ];
   }
-  return ["Нажмите «Подключиться», чтобы получить ключи."];
+  return ["Нажмите «Подключиться», чтобы получить ссылку подписки."];
 }
 
 export type StarsInvoicePayload = {

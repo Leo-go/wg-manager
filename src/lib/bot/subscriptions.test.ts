@@ -49,9 +49,9 @@ describe("daysUntilExpiry", () => {
 });
 
 describe("accessAfterPaymentLines", () => {
-  it("tells returning users keys work without re-import", () => {
+  it("tells returning users access works without re-import", () => {
     const lines = accessAfterPaymentLines(true);
-    expect(lines.join("\n")).toMatch(/снова активны/i);
+    expect(lines.join("\n")).toMatch(/снова активен/i);
     expect(lines.join("\n")).not.toMatch(/^Нажмите «Подключиться»/);
   });
 

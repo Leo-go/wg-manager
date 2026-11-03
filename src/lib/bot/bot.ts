@@ -111,7 +111,7 @@ function welcomeText(config: BotConfig): string {
   return [
     "👋 Привет! Это VPN для нашей компании.",
     "",
-    "Поддержите сервер → «Подключиться» → скопируйте ссылку подписки в INCY/Happ.",
+    "Поддержите сервер → «Подключиться» → скопируйте ссылку подписки в INCY.",
     "",
     `Рекомендуемый взнос: ${formatRub(config.suggestedDonationRub)} / месяц`,
     "",
@@ -727,7 +727,7 @@ export function createBot(config: BotConfig): Bot {
           "",
           dryRun
             ? "Запуск без dry-run: /refreshhomes"
-            : "После refresh пользователям: обновить subscription в Happ/INCY или «Подключиться».",
+            : "После refresh пользователям: обновить подписку в INCY или «Подключиться».",
         ].join("\n")
       );
     } catch (error) {
@@ -884,14 +884,13 @@ export function createBot(config: BotConfig): Bot {
       if (data === "action:clients") {
         await ctx.reply(
           [
-            "📲 Клиенты для нашего ключа",
+            "📲 Клиенты",
             "",
-            "Android — INCY (Google Play)",
-            "iOS — INCY (российский App Store)",
-            "ПК — INCY или Happ",
+            "Основной — INCY (Android / iPhone / ПК).",
+            "Happ — запасной; на Tele2 мобильный профиль надёжнее в INCY.",
             "",
             "Запасные: v2rayNG (Android APK), v2rayN (Windows).",
-            "⚠️ Hiddify — только для ключа «Дом», не для мобильного CDN.",
+            "⚠️ Hiddify — только HOME, не MOBILE.",
           ].join("\n"),
           {
             reply_markup: clientsKeyboard(),
@@ -1029,15 +1028,16 @@ function helpText(config: BotConfig): string {
   return [
     "❓ Помощь",
     "",
-    "1. «📲 Клиенты» → поставьте INCY (или Happ).",
+    "1. «📲 Клиенты» → поставьте INCY.",
     "2. «Поддержать» → Stars ⭐ или СБП.",
-    "3. «Подключиться» → скопируйте ссылку подписки → в клиенте «+» → URL.",
+    "3. «Подключиться» → скопируйте ссылку подписки → в INCY «+» → URL.",
     "4. Wi‑Fi → HOME. Сотовая → MOBILE. На Wi‑Fi MOBILE не держите (CDN платный).",
-    "5. Обновить список: pull/update в клиенте или снова «Подключиться».",
+    "5. Обновить список: pull/update в INCY или снова «Подключиться».",
     "6. Нет интернета после включения — выключите VPN в клиенте.",
     "",
-    "Сырые vless:// — только по кнопке «📋 Сырые ключи» (если нужен ручной импорт).",
-    "MOBILE (CDN) — не Hiddify. HOME — Hiddify можно.",
+    "Сырые vless:// — только «📋 Сырые ключи» (ручной импорт).",
+    "Основной клиент — INCY. Happ на Tele2/CDN часто не встаёт.",
+    "MOBILE — не Hiddify. HOME — Hiddify можно.",
     "",
     `Stars: ${config.starsAmount} ⭐ / мес · СБП: ${formatRub(config.suggestedDonationRub)}`,
     "",
@@ -1151,8 +1151,8 @@ async function handleConnect(ctx: Context, config: BotConfig, bot: Bot) {
     [
       "🔌 Готово",
       "",
-      "Скопируйте ссылку ниже → INCY/Happ → «+» → URL / подписка.",
-      "Внутри: HOME (Wi‑Fi) и MOBILE (сотовая).",
+      "Скопируйте ссылку ниже → INCY → «+» → URL / подписка.",
+      "Внутри: HOME (Wi‑Fi) и MOBILE (сотовая / Tele2).",
       "На Wi‑Fi не оставляйте MOBILE: CDN платный.",
       "",
       `Подписка до: ${formatDate(updated.subscribed_until)}`,
@@ -1203,7 +1203,7 @@ async function handleRefreshHome(ctx: Context, config: BotConfig) {
         : "✅ Домашний ключ уже актуален.",
       "",
       subUrl
-        ? "Обновите подписку в INCY/Happ (pull/update) или снова «Подключиться»."
+        ? "Обновите подписку в INCY (pull/update) или снова «Подключиться»."
         : "Нажмите «Подключиться», чтобы получить ссылку подписки.",
     ].join("\n"),
     { reply_markup: afterConnectKeyboard() }
@@ -1287,9 +1287,9 @@ async function handleDownloadAndroidApk(ctx: Context, bot: Bot) {
   const caption = [
     "📱 v2rayNG (запасной Android)",
     "",
-    "Основной клиент — INCY из Google Play.",
+    "Лучше поставьте INCY из Google Play.",
     "1. Установите APK (разрешите установку из неизвестных источников).",
-    "2. В боте нажмите «Подключиться» и скопируйте ключ.",
+    "2. В боте «Подключиться» → «📋 Сырые ключи» → скопируйте нужный.",
     "3. В v2rayNG: «+» → Import config from clipboard.",
   ].join("\n");
 
@@ -1305,9 +1305,9 @@ async function handleDownloadAndroidApk(ctx: Context, bot: Bot) {
       caption: [
         `📱 v2rayNG ${apk.tag} (запасной Android)`,
         "",
-        "Основной клиент — INCY из Google Play.",
+        "Лучше поставьте INCY из Google Play.",
         "1. Установите APK (разрешите установку из неизвестных источников).",
-        "2. В боте нажмите «Подключиться» и скопируйте ключ.",
+        "2. В боте «Подключиться» → «📋 Сырые ключи» → скопируйте нужный.",
         "3. В v2rayNG: «+» → Import config from clipboard.",
       ].join("\n"),
     });
