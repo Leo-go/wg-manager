@@ -57,15 +57,19 @@ export function clientsKeyboard(): InlineKeyboard {
 /** After key issue — subscription first, then copy / refresh home. */
 export function afterConnectKeyboard(opts?: {
   vlessUrl?: string | null;
+  /** HTTPS feed URL (also used to derive /import landing). */
   subscriptionUrl?: string | null;
   homeEnabled?: boolean;
 }): InlineKeyboard {
   const kb = new InlineKeyboard();
   const vlessUrl = opts?.vlessUrl;
   const subscriptionUrl = opts?.subscriptionUrl;
+  const importUrl = subscriptionUrl
+    ? `${subscriptionUrl.replace(/\/$/, "")}/import`
+    : null;
 
-  if (subscriptionUrl) {
-    kb.url("📲 Subscription (Happ / INCY)", subscriptionUrl).row();
+  if (importUrl) {
+    kb.url("📲 Добавить в Happ / INCY", importUrl).row();
   }
 
   if (vlessUrl && canUseCopyTextButton(vlessUrl)) {

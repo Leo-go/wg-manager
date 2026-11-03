@@ -1,5 +1,3 @@
-import { withCdnHttp1Alpn } from "@/lib/cdn/build-client-url";
-
 /** Rename #fragment so Happ/INCY show clear profile names. */
 export function withProfileName(vlessUrl: string, name: string): string {
   const trimmed = vlessUrl.trim();
@@ -11,7 +9,8 @@ export function withProfileName(vlessUrl: string, name: string): string {
 
 /**
  * Classic base64 subscription body: one URI per line.
- * HOME first, then MOBILE (H2), then MOBILE-H1 (HTTP/1.1 ALPN — Tele2/DPI fallback).
+ * HOME first, then MOBILE (Yandex CDN xHTTP over HTTP/2).
+ * Do not force alpn=http/1.1 — Yandex CDN speaks HTTP/2 and H1 ALPN breaks xHTTP.
  */
 export function buildSubscriptionBody(
   homeUrl: string | null | undefined,
@@ -21,10 +20,7 @@ export function buildSubscriptionBody(
   const home = homeUrl?.trim();
   const mobile = mobileUrl?.trim();
   if (home) lines.push(withProfileName(home, "HOME"));
-  if (mobile) {
-    lines.push(withProfileName(mobile, "MOBILE"));
-    lines.push(withProfileName(withCdnHttp1Alpn(mobile), "MOBILE-H1"));
-  }
+  if (mobile) lines.push(withProfileName(mobile, "MOBILE"));
   return Buffer.from(lines.join("\n"), "utf8").toString("base64");
 }
 
@@ -34,4 +30,17 @@ export function buildSubscriptionUrl(
 ): string {
   const base = siteUrl.replace(/\/$/, "");
   return `${base}/api/telegram/sub/${encodeURIComponent(token)}`;
+}
+
+/** Landing page that opens Happ via deeplink (Telegram url buttons only allow http/https). */
+export function buildSubscriptionImportUrl(
+  siteUrl: string,
+  token: string
+): string {
+  return `${buildSubscriptionUrl(siteUrl, token)}/import`;
+}
+
+/** Happ deeplink: plain subscription URL after add/ (no base64, no encode). */
+export function buildHappAddUrl(subscriptionUrl: string): string {
+  return `happ://add/${subscriptionUrl.trim()}`;
 }

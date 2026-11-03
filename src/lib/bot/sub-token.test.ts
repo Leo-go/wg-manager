@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { signSubToken, verifySubToken } from "@/lib/bot/sub-token";
 import {
+  buildHappAddUrl,
   buildSubscriptionBody,
+  buildSubscriptionImportUrl,
   buildSubscriptionUrl,
   withProfileName,
 } from "@/lib/bot/subscription-feed";
@@ -26,26 +28,30 @@ describe("sub-token", () => {
 });
 
 describe("subscription-feed", () => {
-  it("puts HOME, MOBILE, then MOBILE-H1 and base64-encodes", () => {
+  it("puts HOME then MOBILE and base64-encodes", () => {
     const body = buildSubscriptionBody(
       "vless://aaa@home:443?type=xhttp#old",
       "vless://bbb@cdn:443?type=xhttp#old"
     );
     const decoded = Buffer.from(body, "base64").toString("utf8");
     const lines = decoded.split("\n");
-    expect(lines).toHaveLength(3);
+    expect(lines).toHaveLength(2);
     expect(lines[0]).toContain("@home:443");
     expect(lines[0].endsWith("#HOME")).toBe(true);
     expect(lines[1]).toContain("@cdn:443");
     expect(lines[1].endsWith("#MOBILE")).toBe(true);
-    expect(lines[2]).toContain("alpn=http%2F1.1");
-    expect(lines[2].endsWith("#MOBILE-H1")).toBe(true);
   });
 
-  it("builds subscription URL", () => {
+  it("builds subscription URL and Happ import helpers", () => {
     expect(buildSubscriptionUrl("https://wg-manager.ru/", "uid.sig")).toBe(
       "https://wg-manager.ru/api/telegram/sub/uid.sig"
     );
+    expect(buildSubscriptionImportUrl("https://wg-manager.ru/", "uid.sig")).toBe(
+      "https://wg-manager.ru/api/telegram/sub/uid.sig/import"
+    );
+    expect(
+      buildHappAddUrl("https://wg-manager.ru/api/telegram/sub/uid.sig")
+    ).toBe("happ://add/https://wg-manager.ru/api/telegram/sub/uid.sig");
   });
 
   it("renames fragment", () => {

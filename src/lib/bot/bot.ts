@@ -67,8 +67,10 @@ import { buildClientLabelArg } from "@/lib/bot/build-vless-url";
 import { isHomeProfileEnabled } from "@/lib/bot/home-server";
 import { listBotKeyEvents, logBotKeyEvent } from "@/lib/bot/key-events";
 import { signSubToken } from "@/lib/bot/sub-token";
-import { withCdnHttp1Alpn } from "@/lib/cdn/build-client-url";
-import { buildSubscriptionUrl } from "@/lib/bot/subscription-feed";
+import {
+  buildHappAddUrl,
+  buildSubscriptionUrl,
+} from "@/lib/bot/subscription-feed";
 import {
   provisionBotUserDual,
   revokeBotUserEverywhere,
@@ -116,7 +118,7 @@ function welcomeText(config: BotConfig): string {
   return [
     "👋 Привет! Это VPN для нашей компании.",
     "",
-    "Поддержите сервер → «Подключиться» → Subscription в Happ/INCY (HOME + MOBILE + MOBILE-H1).",
+    "Поддержите сервер → «Подключиться» → «Добавить в Happ / INCY» (HOME + MOBILE).",
     "",
     `Рекомендуемый взнос: ${formatRub(config.suggestedDonationRub)} / месяц`,
     "",
@@ -1031,17 +1033,16 @@ function helpText(config: BotConfig): string {
     "   • iPhone — INCY (российский App Store)",
     "   • ПК — INCY или Happ",
     "2. «Поддержать» → Stars ⭐ или СБП.",
-    "3. «Подключиться» → кнопка Subscription (Happ/INCY) — один импорт: HOME + MOBILE + MOBILE-H1.",
-    "4. В клиенте: Wi‑Fi → HOME. Сотовая → MOBILE; если Tele2 режет — MOBILE-H1.",
-    "   На Wi‑Fi MOBILE/H1 не держите (CDN платный).",
-    "5. Обновить профили: в Happ/INCY pull/update у уже добавленной subscription,",
-    "   или снова «Подключиться» → кнопка Subscription.",
+    "3. «Подключиться» → «Добавить в Happ / INCY» (откроет страницу импорта),",
+    "   либо скопируйте ссылку подписки из сообщения бота → в Happ «+» → URL.",
+    "4. В клиенте: Wi‑Fi → HOME. Сотовая → MOBILE. На Wi‑Fi MOBILE не держите (CDN платный).",
+    "5. Обновить профили: pull/update у подписки в Happ/INCY, или снова «Подключиться».",
     "6. Если нет интернета после включения — ВЫКЛЮЧИТЕ VPN в клиенте.",
-    "7. Дом не встаёт — «🏠 Обновить дом», затем обновите subscription.",
+    "7. Дом не встаёт — «🏠 Обновить дом», затем обновите подписку.",
     "",
     "Сырые ключи по-прежнему приходят текстом (для ручного импорта).",
     "🏠 HOME (RU Reality): INCY / Happ / v2rayNG / Hiddify.",
-    "📱 MOBILE / MOBILE-H1 (CDN): INCY / Happ / v2rayNG. Не Hiddify.",
+    "📱 MOBILE (CDN): INCY / Happ / v2rayNG. Не Hiddify.",
     "",
     "📱 Android (INCY):",
     "   • Ставится из Google Play",
@@ -1168,10 +1169,10 @@ async function handleConnect(ctx: Context, config: BotConfig, bot: Bot) {
       "🔌 Ваши профили VPN",
       "",
       subUrl
-        ? "Главное: кнопка Subscription ниже — импорт в Happ/INCY (HOME + MOBILE + MOBILE-H1)."
+        ? "Главное: кнопка «Добавить в Happ / INCY» ниже — или скопируйте ссылку из следующего сообщения."
         : "Импортируйте ключи ниже в Happ/INCY.",
-      "Wi‑Fi / офис → HOME. Сотовая → MOBILE; Tele2 режет → MOBILE-H1.",
-      "На Wi‑Fi не оставляйте MOBILE/H1: CDN платный.",
+      "Wi‑Fi / офис → HOME. Сотовая → MOBILE.",
+      "На Wi‑Fi не оставляйте MOBILE: CDN платный.",
       "Нет интернета после включения — выключите VPN в клиенте.",
       "",
       `Подписка до: ${formatDate(updated.subscribed_until)}`,
@@ -1184,6 +1185,19 @@ async function handleConnect(ctx: Context, config: BotConfig, bot: Bot) {
       }),
     }
   );
+
+  if (subUrl) {
+    await replyCopyableKey(
+      ctx,
+      subUrl,
+      "📲 Ссылка подписки — нажмите, скопируйте → Happ/INCY «+» → URL:"
+    );
+    await replyCopyableKey(
+      ctx,
+      buildHappAddUrl(subUrl),
+      "⚡ Deeplink Happ (если установлен) — нажмите и скопируйте, затем вставьте в Safari/браузер:"
+    );
+  }
 
   await sendDualKeys(ctx, updated);
 
@@ -1256,7 +1270,6 @@ async function sendDualKeys(
 ) {
   const mobileUrl = user.vless_config_url?.trim() || "";
   const homeUrl = user.vless_tcp_config_url?.trim() || "";
-  const mobileH1Url = mobileUrl ? withCdnHttp1Alpn(mobileUrl) : "";
 
   if (homeUrl) {
     await replyCopyableKey(
@@ -1271,14 +1284,6 @@ async function sendDualKeys(
       ctx,
       mobileUrl,
       "📱 МОБИЛЬНЫЙ (CDN) — нажмите ключ, чтобы скопировать:"
-    );
-  }
-
-  if (mobileH1Url) {
-    await replyCopyableKey(
-      ctx,
-      mobileH1Url,
-      "📱 МОБИЛЬНЫЙ-H1 (Tele2 fallback) — нажмите ключ, чтобы скопировать:"
     );
   }
 
