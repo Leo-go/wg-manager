@@ -111,7 +111,9 @@ function welcomeText(config: BotConfig): string {
   return [
     "👋 Привет! Это VPN для нашей компании.",
     "",
-    "Поддержите сервер → «Подключиться» → скопируйте ссылку подписки в INCY.",
+    "1. «📲 Клиенты» → поставьте INCY.",
+    "2. «💰 Поддержать» → Stars или СБП.",
+    "3. «🔌 Подключиться» → скопируйте ссылку подписки в INCY.",
     "",
     `Рекомендуемый взнос: ${formatRub(config.suggestedDonationRub)} / месяц`,
     "",
@@ -1110,7 +1112,7 @@ async function handleConnect(ctx: Context, config: BotConfig, bot: Bot) {
     }
   }
 
-  await ctx.reply("⏳ Генерирую ключ на сервере, подождите 10–30 сек…");
+  await ctx.reply("⏳ Готовлю подписку на сервере, подождите 10–30 сек…");
 
   let updated: Awaited<ReturnType<typeof ensureProvisioned>>;
   try {
@@ -1149,11 +1151,13 @@ async function handleConnect(ctx: Context, config: BotConfig, bot: Bot) {
 
   await ctx.reply(
     [
-      "🔌 Готово",
+      "🔌 Подписка готова",
       "",
-      "Скопируйте ссылку ниже → INCY → «+» → URL / подписка.",
-      "Внутри: HOME (Wi‑Fi) и MOBILE (сотовая / Tele2).",
+      "1. Скопируйте ссылку ниже (нажмите на неё).",
+      "2. В INCY: «+» → URL / подписка.",
+      "3. HOME — Wi‑Fi. MOBILE — сотовая (Tele2 и др.).",
       "На Wi‑Fi не оставляйте MOBILE: CDN платный.",
+      "Старые одиночные ключи в клиенте лучше удалить, чтобы не путаться.",
       "",
       `Подписка до: ${formatDate(updated.subscribed_until)}`,
     ].join("\n"),
