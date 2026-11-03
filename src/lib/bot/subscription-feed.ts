@@ -1,3 +1,5 @@
+import { withCdnHttp1Alpn } from "@/lib/cdn/build-client-url";
+
 /** Rename #fragment so Happ/INCY show clear profile names. */
 export function withProfileName(vlessUrl: string, name: string): string {
   const trimmed = vlessUrl.trim();
@@ -9,7 +11,7 @@ export function withProfileName(vlessUrl: string, name: string): string {
 
 /**
  * Classic base64 subscription body: one URI per line.
- * HOME first (priority), then MOBILE fallback.
+ * HOME first, then MOBILE (H2), then MOBILE-H1 (HTTP/1.1 ALPN — Tele2/DPI fallback).
  */
 export function buildSubscriptionBody(
   homeUrl: string | null | undefined,
@@ -19,7 +21,10 @@ export function buildSubscriptionBody(
   const home = homeUrl?.trim();
   const mobile = mobileUrl?.trim();
   if (home) lines.push(withProfileName(home, "HOME"));
-  if (mobile) lines.push(withProfileName(mobile, "MOBILE"));
+  if (mobile) {
+    lines.push(withProfileName(mobile, "MOBILE"));
+    lines.push(withProfileName(withCdnHttp1Alpn(mobile), "MOBILE-H1"));
+  }
   return Buffer.from(lines.join("\n"), "utf8").toString("base64");
 }
 

@@ -345,12 +345,12 @@ open_firewall_tcp 443
 # Client VLESS URL (user still must finish Yandex CDN + DNS CNAME)
 PATH_ENC=$(python3 -c "import urllib.parse; print(urllib.parse.quote('${XHTTP_PATH}', safe=''))")
 EXTRA_JSON=$(cat <<EXTRA
-{"mode":"packet-up","uplinkHTTPMethod":"GET","uplinkDataPlacement":"header","uplinkDataKey":"X-Data","uplinkChunkSize":2048,"scMaxEachPostBytes":8192,"scMinPostsIntervalMs":30,"scMaxBufferedPosts":30,"xPaddingObfsMode":true,"xPaddingBytes":"100-200","xPaddingKey":"${PADDING_KEY}","xPaddingHeader":"X-Cache","xPaddingMethod":"tokenish","xPaddingPlacement":"queryInHeader"}
+{"mode":"packet-up","uplinkHTTPMethod":"GET","uplinkDataPlacement":"header","uplinkDataKey":"X-Data","uplinkChunkSize":2048,"scMaxEachPostBytes":8192,"scMinPostsIntervalMs":120,"scMaxBufferedPosts":10,"scMaxConcurrentPosts":2,"xPaddingObfsMode":true,"xPaddingBytes":"100-200","xPaddingKey":"${PADDING_KEY}","xPaddingHeader":"X-Cache","xPaddingMethod":"tokenish","xPaddingPlacement":"queryInHeader"}
 EXTRA
 )
 EXTRA_ENC=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1], safe=''))" "$EXTRA_JSON")
 
-VLESS_URL="vless://${UUID}@${CDN_HOST}:443?encryption=none&security=tls&sni=${CDN_HOST}&host=${CDN_HOST}&fp=chrome&type=xhttp&path=${PATH_ENC}&mode=packet-up&scMaxEachPostBytes=8192&extra=${EXTRA_ENC}#WG-Yandex-CDN"
+VLESS_URL="vless://${UUID}@${CDN_HOST}:443?encryption=none&security=tls&sni=${CDN_HOST}&host=${CDN_HOST}&fp=chrome&type=xhttp&path=${PATH_ENC}&mode=packet-up&scMaxEachPostBytes=8192&scMaxConcurrentPosts=2&scMinPostsIntervalMs=120&extra=${EXTRA_ENC}#WG-Yandex-CDN"
 
 echo "CDN_ORIGIN_HOST=${ORIGIN_HOST}"
 echo "CDN_HOST=${CDN_HOST}"
