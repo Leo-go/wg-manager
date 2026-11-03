@@ -22,10 +22,6 @@ import {
   desktopGuideText,
   downloadV2rayNgApk,
   getCachedV2rayNgFileId,
-  HAPP_DESKTOP_RELEASES_URL,
-  INCY_ANDROID_PLAY_URL,
-  INCY_DESKTOP_WINDOWS_URL,
-  INCY_IOS_APPSTORE_URL,
   iosGuideText,
   setCachedV2rayNgFileId,
 } from "@/lib/bot/clients";
@@ -67,10 +63,7 @@ import { buildClientLabelArg } from "@/lib/bot/build-vless-url";
 import { isHomeProfileEnabled } from "@/lib/bot/home-server";
 import { listBotKeyEvents, logBotKeyEvent } from "@/lib/bot/key-events";
 import { signSubToken } from "@/lib/bot/sub-token";
-import {
-  buildHappAddUrl,
-  buildSubscriptionUrl,
-} from "@/lib/bot/subscription-feed";
+import { buildSubscriptionUrl } from "@/lib/bot/subscription-feed";
 import {
   provisionBotUserDual,
   revokeBotUserEverywhere,
@@ -118,7 +111,7 @@ function welcomeText(config: BotConfig): string {
   return [
     "👋 Привет! Это VPN для нашей компании.",
     "",
-    "Поддержите сервер → «Подключиться» → «Добавить в Happ / INCY» (HOME + MOBILE).",
+    "Поддержите сервер → «Подключиться» → скопируйте ссылку подписки в INCY/Happ.",
     "",
     `Рекомендуемый взнос: ${formatRub(config.suggestedDonationRub)} / месяц`,
     "",
@@ -559,7 +552,7 @@ export function createBot(config: BotConfig): Bot {
           `✅ Trial на 3 дня: ${targetId}`,
           `Подписка до: ${formatDate(updated.subscribed_until)}`,
           "",
-          "Перешлите ссылку на INCY (Play) + оба ключа: 🏠 дом и 📱 мобильный.",
+          "Ниже — ссылка подписки (предпочтительно) и сырые ключи на случай пересылки в ВК.",
           provisioned.homeError
             ? `⚠️ Домашний ключ (RU relay) не записался: ${provisioned.homeError}`
             : "",
@@ -568,6 +561,14 @@ export function createBot(config: BotConfig): Bot {
           .join("\n")
       );
 
+      const trialSub = subscriptionLinkForUser(config, updated.id);
+      if (trialSub) {
+        await replyCopyableKey(
+          ctx,
+          trialSub,
+          "📲 Ссылка подписки — нажмите, чтобы скопировать:"
+        );
+      }
       await sendDualKeys(ctx, updated);
 
       await bot.api
@@ -1028,38 +1029,15 @@ function helpText(config: BotConfig): string {
   return [
     "❓ Помощь",
     "",
-    "1. Скачайте клиент (кнопка «📲 Клиенты»):",
-    "   • Android — INCY (Google Play)",
-    "   • iPhone — INCY (российский App Store)",
-    "   • ПК — INCY или Happ",
+    "1. «📲 Клиенты» → поставьте INCY (или Happ).",
     "2. «Поддержать» → Stars ⭐ или СБП.",
-    "3. «Подключиться» → «Добавить в Happ / INCY» (откроет страницу импорта),",
-    "   либо скопируйте ссылку подписки из сообщения бота → в Happ «+» → URL.",
-    "4. В клиенте: Wi‑Fi → HOME. Сотовая → MOBILE. На Wi‑Fi MOBILE не держите (CDN платный).",
-    "5. Обновить профили: pull/update у подписки в Happ/INCY, или снова «Подключиться».",
-    "6. Если нет интернета после включения — ВЫКЛЮЧИТЕ VPN в клиенте.",
-    "7. Дом не встаёт — «🏠 Обновить дом», затем обновите подписку.",
+    "3. «Подключиться» → скопируйте ссылку подписки → в клиенте «+» → URL.",
+    "4. Wi‑Fi → HOME. Сотовая → MOBILE. На Wi‑Fi MOBILE не держите (CDN платный).",
+    "5. Обновить список: pull/update в клиенте или снова «Подключиться».",
+    "6. Нет интернета после включения — выключите VPN в клиенте.",
     "",
-    "Сырые ключи по-прежнему приходят текстом (для ручного импорта).",
-    "🏠 HOME (RU Reality): INCY / Happ / v2rayNG / Hiddify.",
-    "📱 MOBILE (CDN): INCY / Happ / v2rayNG. Не Hiddify.",
-    "",
-    "📱 Android (INCY):",
-    "   • Ставится из Google Play",
-    `   • ${INCY_ANDROID_PLAY_URL}`,
-    "   • Нет Play — официальный APK или запасной v2rayNG",
-    "",
-    "🍎 iPhone (INCY):",
-    "   • Ставится из РФ App Store без смены региона",
-    "   • Subscription URL или импорт из буфера → Connect",
-    `   • ${INCY_IOS_APPSTORE_URL}`,
-    "   • Запасной: Happ (часто удалён из РФ) — зарубежный Apple ID / TestFlight",
-    "",
-    "💻 ПК:",
-    `   • INCY: ${INCY_DESKTOP_WINDOWS_URL}`,
-    `   • Happ: ${HAPP_DESKTOP_RELEASES_URL}`,
-    "",
-    "⚠️ Мобильный CDN: не Hiddify. Дом — Hiddify можно.",
+    "Сырые vless:// — только по кнопке «📋 Сырые ключи» (если нужен ручной импорт).",
+    "MOBILE (CDN) — не Hiddify. HOME — Hiddify можно.",
     "",
     `Stars: ${config.starsAmount} ⭐ / мес · СБП: ${formatRub(config.suggestedDonationRub)}`,
     "",
@@ -1101,7 +1079,7 @@ async function handleConnect(ctx: Context, config: BotConfig, bot: Bot) {
   if (!isSubscriptionActive(user.subscribed_until)) {
     await ctx.reply(
       [
-        "🔒 Для получения ключа нужна активная подписка.",
+        "🔒 Для подключения нужна активная подписка.",
         "",
         `Рекомендуемый взнос: ${formatRub(config.suggestedDonationRub)} / месяц`,
         "",
@@ -1154,62 +1132,39 @@ async function handleConnect(ctx: Context, config: BotConfig, bot: Bot) {
     throw new Error(`${formatBotError(error)}${hint}`);
   }
 
-  const mobileUrl = updated.vless_config_url?.trim() || "";
-  const homeUrl = updated.vless_tcp_config_url?.trim() || "";
-  const homeEnabled = isHomeProfileEnabled(config);
   const subUrl = subscriptionLinkForUser(config, updated.id);
-  const homeTemplate = process.env.TELEGRAM_BOT_HOME_VLESS_TEMPLATE?.trim();
-  const homeStale =
-    Boolean(homeUrl) &&
-    Boolean(homeTemplate) &&
-    botHomeUrlNeedsRefresh(homeUrl, homeTemplate);
+  const homeUrl = updated.vless_tcp_config_url?.trim() || "";
+  const mobileUrl = updated.vless_config_url?.trim() || "";
+
+  if (!subUrl) {
+    await ctx.reply(
+      "⚠️ Ссылку подписки сейчас не собрать. Нажмите «📋 Сырые ключи» или напишите админу.",
+      { reply_markup: afterConnectKeyboard() }
+    );
+    if (homeUrl || mobileUrl) {
+      await sendDualKeys(ctx, updated);
+    }
+    return;
+  }
 
   await ctx.reply(
     [
-      "🔌 Ваши профили VPN",
+      "🔌 Готово",
       "",
-      subUrl
-        ? "Главное: кнопка «Добавить в Happ / INCY» ниже — или скопируйте ссылку из следующего сообщения."
-        : "Импортируйте ключи ниже в Happ/INCY.",
-      "Wi‑Fi / офис → HOME. Сотовая → MOBILE.",
+      "Скопируйте ссылку ниже → INCY/Happ → «+» → URL / подписка.",
+      "Внутри: HOME (Wi‑Fi) и MOBILE (сотовая).",
       "На Wi‑Fi не оставляйте MOBILE: CDN платный.",
-      "Нет интернета после включения — выключите VPN в клиенте.",
       "",
       `Подписка до: ${formatDate(updated.subscribed_until)}`,
     ].join("\n"),
-    {
-      reply_markup: afterConnectKeyboard({
-        vlessUrl: homeUrl || mobileUrl || null,
-        subscriptionUrl: subUrl,
-        homeEnabled,
-      }),
-    }
+    { reply_markup: afterConnectKeyboard() }
   );
 
-  if (subUrl) {
-    await replyCopyableKey(
-      ctx,
-      subUrl,
-      "📲 Ссылка подписки — нажмите, скопируйте → Happ/INCY «+» → URL:"
-    );
-    await replyCopyableKey(
-      ctx,
-      buildHappAddUrl(subUrl),
-      "⚡ Deeplink Happ (если установлен) — нажмите и скопируйте, затем вставьте в Safari/браузер:"
-    );
-  }
-
-  await sendDualKeys(ctx, updated);
-
-  if (homeEnabled && !homeUrl) {
-    await ctx.reply(
-      "⚠️ Домашний ключ (RU relay) не записался. Пользуйтесь 📱 MOBILE и нажмите «🏠 Обновить дом» позже или напишите админу."
-    );
-  } else if (homeEnabled && homeStale) {
-    await ctx.reply(
-      "⚠️ Домашний ключ похож на устаревший. Нажмите «🏠 Обновить дом», затем обновите subscription в клиенте."
-    );
-  }
+  await replyCopyableKey(
+    ctx,
+    subUrl,
+    "📲 Ссылка подписки — нажмите, чтобы скопировать:"
+  );
 }
 
 async function handleRefreshHome(ctx: Context, config: BotConfig) {
@@ -1232,7 +1187,7 @@ async function handleRefreshHome(ctx: Context, config: BotConfig) {
   }
 
   await ctx.reply("⏳ Обновляю домашний ключ на RU relay…");
-  const { user: updated, result } = await refreshHomeForUser(config, user);
+  const { result } = await refreshHomeForUser(config, user);
   if (result.error || !result.url) {
     await ctx.reply(
       `⚠️ Не удалось обновить дом: ${result.error || "нет URL"}. Пользуйтесь MOBILE и напишите админу.`
@@ -1240,27 +1195,18 @@ async function handleRefreshHome(ctx: Context, config: BotConfig) {
     return;
   }
 
-  const subUrl = subscriptionLinkForUser(config, updated.id);
+  const subUrl = subscriptionLinkForUser(config, user.id);
   await ctx.reply(
     [
       result.updated
         ? "✅ Домашний ключ обновлён."
-        : "✅ Домашний ключ уже актуален (перезаписан на сервере).",
+        : "✅ Домашний ключ уже актуален.",
       "",
-      "Обновите subscription в Happ/INCY (pull/update) или импортируйте ключ ниже.",
+      subUrl
+        ? "Обновите подписку в INCY/Happ (pull/update) или снова «Подключиться»."
+        : "Нажмите «Подключиться», чтобы получить ссылку подписки.",
     ].join("\n"),
-    {
-      reply_markup: afterConnectKeyboard({
-        vlessUrl: result.url,
-        subscriptionUrl: subUrl,
-        homeEnabled: true,
-      }),
-    }
-  );
-  await replyCopyableKey(
-    ctx,
-    result.url,
-    "🏠 ДОМ (обновлённый) — нажмите ключ, чтобы скопировать:"
+    { reply_markup: afterConnectKeyboard() }
   );
 }
 
@@ -1300,11 +1246,14 @@ async function handleCopyKey(ctx: Context) {
 
   if (!user || (!user.vless_config_url && !user.vless_tcp_config_url)) {
     await ctx.reply(
-      "Ключа пока нет. Нажмите «Подключиться», чтобы получить его."
+      "Ключей пока нет. Сначала нажмите «Подключиться»."
     );
     return;
   }
 
+  await ctx.reply(
+    "Сырые ключи (если нужен ручной импорт). Обычно достаточно ссылки подписки."
+  );
   await sendDualKeys(ctx, user);
 }
 

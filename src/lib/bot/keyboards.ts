@@ -54,37 +54,11 @@ export function clientsKeyboard(): InlineKeyboard {
     .text("« Назад", "action:help");
 }
 
-/** After key issue — subscription first, then copy / refresh home. */
-export function afterConnectKeyboard(opts?: {
-  vlessUrl?: string | null;
-  /** HTTPS feed URL (also used to derive /import landing). */
-  subscriptionUrl?: string | null;
-  homeEnabled?: boolean;
-}): InlineKeyboard {
-  const kb = new InlineKeyboard();
-  const vlessUrl = opts?.vlessUrl;
-  const subscriptionUrl = opts?.subscriptionUrl;
-  const importUrl = subscriptionUrl
-    ? `${subscriptionUrl.replace(/\/$/, "")}/import`
-    : null;
-
-  if (importUrl) {
-    kb.url("📲 Добавить в Happ / INCY", importUrl).row();
-  }
-
-  if (vlessUrl && canUseCopyTextButton(vlessUrl)) {
-    kb.copyText("📋 Скопировать ключ", vlessUrl).row();
-  } else if (vlessUrl) {
-    kb.text("📋 Скопировать ключ", "action:copy_key").row();
-  }
-
-  if (opts?.homeEnabled) {
-    kb.text("🏠 Обновить дом", "action:refresh_home").row();
-  }
-
-  return kb
-    .text("📲 Клиенты", "action:clients")
-    .text("❓ Помощь", "action:help");
+/** After «Подключиться» — subscription is in the message; keys on demand. */
+export function afterConnectKeyboard(): InlineKeyboard {
+  return new InlineKeyboard()
+    .text("📋 Сырые ключи", "action:copy_key")
+    .text("📲 Клиенты", "action:clients");
 }
 
 export function iosClientsKeyboard(): InlineKeyboard {
